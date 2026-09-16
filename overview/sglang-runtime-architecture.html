@@ -5168,11 +5168,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <path data-edge-from="worker" data-edge-to="kv_pool" data-edge-label="读写 KV" data-edge-key="4" data-edge-id="worker-kv" data-composition-points="1140,362;1140,460" d="M 1140 362 L 1140 460" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="scheduler" data-edge-to="prefix_cache" data-edge-label="前缀匹配" data-edge-key="5" data-edge-id="scheduler-prefix" data-composition-points="875,362;875,460" d="M 875 362 L 875 460" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="prefix_cache" data-edge-to="kv_pool" data-edge-label="槽位索引" data-edge-key="6" data-edge-id="prefix-kv" data-composition-points="950,491;1060,491" d="M 950 491 L 1060 491" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="scheduler" data-edge-to="detokenizer" data-edge-label="输出 token" data-edge-key="7" data-edge-id="scheduler-detokenizer" data-composition-points="875,300;875,254;622,254;622,208" d="M 875 300 L 875 262 Q 875 254 867 254 L 630 254 Q 622 254 622 246 L 622 208" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="detokenizer" data-edge-to="tokenizer_mgr" data-edge-label="回传文本" data-edge-key="8" data-edge-id="detokenizer-tokenizer" data-composition-points="608,208;608,300" d="M 608 208 L 608 300" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="scheduler" data-edge-to="detokenizer" data-edge-label="BatchTokenIDOutput" data-edge-key="7" data-edge-id="scheduler-detokenizer" data-composition-points="875,300;875,254;622,254;622,208" d="M 875 300 L 875 262 Q 875 254 867 254 L 630 254 Q 622 254 622 246 L 622 208" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="detokenizer" data-edge-to="tokenizer_mgr" data-edge-label="BatchStrOutput" data-edge-key="8" data-edge-id="detokenizer-tokenizer" data-composition-points="608,208;608,300" d="M 608 208 L 608 300" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="http_server" data-edge-to="clients" data-edge-label="SSE 流式响应" data-edge-key="9" data-edge-id="http-clients" data-composition-points="355,300;355,276;105,276;105,300" d="M 355 300 L 355 284 Q 355 276 347 276 L 113 276 Q 105 276 105 284 L 105 300" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="hf_hub" data-edge-to="worker" data-edge-label="加载权重" data-edge-key="10" data-edge-id="hub-worker" data-composition-points="875,118;875,160;1140,160;1140,300" d="M 875 118 L 875 152 Q 875 160 883 160 L 1132 160 Q 1140 160 1140 168 L 1140 300" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="worker" data-edge-to="cuda_runtime" data-edge-label="kernel 调用" data-edge-key="11" data-edge-id="worker-cuda" data-composition-points="1220,331;1285,331;1285,89;1210,89" d="M 1220 331 L 1277 331 Q 1285 331 1285 323 L 1285 97 Q 1285 89 1277 89 L 1210 89" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="tokenizer_mgr" data-edge-to="http_server" data-edge-label="文本分片（进程内）" data-edge-key="12" data-edge-id="tokenizer-http-reply" data-composition-points="615,362;615,400;355,400;355,362" d="M 615 362 L 615 392 Q 615 400 607 400 L 363 400 Q 355 400 355 392 L 355 362" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
 
         <!-- Components -->
         <g id="node-clients" data-node-id="clients" data-node-label="调用方" tabindex="0" role="button" aria-label="聚焦调用方，OpenAI / Anthropic SDK, 架构组件" aria-pressed="false" data-node-kind="external" data-node-sublabel="OpenAI / Anthropic SDK" data-node-context="架构组件">
@@ -5322,13 +5323,13 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <rect x="980.8" y="471" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="1005" y="481" class="t-muted" font-size="8" text-anchor="middle">槽位索引</text>
         </g>
-        <g data-detail="context" data-edge-from="scheduler" data-edge-to="detokenizer" data-edge-label="输出 token" data-edge-key="7" data-edge-id="scheduler-detokenizer">
-          <rect x="719.5" y="234" width="58" height="14" rx="3" class="c-mask"/>
-          <text x="748.5" y="244" class="t-messagebus" font-size="8" text-anchor="middle">输出 token</text>
+        <g data-detail="context" data-edge-from="scheduler" data-edge-to="detokenizer" data-edge-label="BatchTokenIDOutput" data-edge-key="7" data-edge-id="scheduler-detokenizer">
+          <rect x="700.3" y="234" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
+          <text x="748.5" y="244" class="t-messagebus" font-size="8" text-anchor="middle">BatchTokenIDOutput</text>
         </g>
-        <g data-detail="context" data-edge-from="detokenizer" data-edge-to="tokenizer_mgr" data-edge-label="回传文本" data-edge-key="8" data-edge-id="detokenizer-tokenizer">
-          <rect x="563.8" y="212" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="588" y="222" class="t-messagebus" font-size="8" text-anchor="middle">回传文本</text>
+        <g data-detail="context" data-edge-from="detokenizer" data-edge-to="tokenizer_mgr" data-edge-label="BatchStrOutput" data-edge-key="8" data-edge-id="detokenizer-tokenizer">
+          <rect x="535.4" y="212" width="77.2" height="14" rx="3" class="c-mask"/>
+          <text x="574" y="222" class="t-messagebus" font-size="8" text-anchor="middle">BatchStrOutput</text>
         </g>
         <g data-detail="context" data-edge-from="http_server" data-edge-to="clients" data-edge-label="SSE 流式响应" data-edge-key="9" data-edge-id="http-clients">
           <rect x="196.2" y="256" width="67.6" height="14" rx="3" class="c-mask"/>
@@ -5341,6 +5342,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <g data-detail="context" data-edge-from="worker" data-edge-to="cuda_runtime" data-edge-label="kernel 调用" data-edge-key="11" data-edge-id="worker-cuda">
           <rect x="1253.6" y="190" width="62.8" height="14" rx="3" class="c-mask"/>
           <text x="1285" y="200" class="t-muted" font-size="8" text-anchor="middle">kernel 调用</text>
+        </g>
+        <g data-detail="context" data-edge-from="tokenizer_mgr" data-edge-to="http_server" data-edge-label="文本分片（进程内）" data-edge-key="12" data-edge-id="tokenizer-http-reply">
+          <rect x="436.8" y="380" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
+          <text x="485" y="390" class="t-messagebus" font-size="8" text-anchor="middle">文本分片（进程内）</text>
         </g>
 
         <!-- Boundary labels (foreground masks keep routes out of titles) -->

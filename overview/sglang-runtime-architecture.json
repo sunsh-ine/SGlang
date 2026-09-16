@@ -355,7 +355,7 @@
       "id": "scheduler-detokenizer",
       "from": "scheduler",
       "to": "detokenizer",
-      "label": "输出 token",
+      "label": "BatchTokenIDOutput",
       "variant": "dashed",
       "fromSide": "top",
       "toSide": "bottom"
@@ -364,10 +364,10 @@
       "id": "detokenizer-tokenizer",
       "from": "detokenizer",
       "to": "tokenizer_mgr",
-      "label": "回传文本",
+      "label": "BatchStrOutput",
       "variant": "dashed",
       "labelDy": 24,
-      "labelDx": -20,
+      "labelDx": -34,
       "fromSide": "bottom",
       "toSide": "top"
     },
@@ -414,6 +414,25 @@
         [
           1285,
           89
+        ]
+      ]
+    },
+    {
+      "id": "tokenizer-http-reply",
+      "from": "tokenizer_mgr",
+      "to": "http_server",
+      "label": "文本分片（进程内）",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          615,
+          400
+        ],
+        [
+          355,
+          400
         ]
       ]
     }

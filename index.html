@@ -112,7 +112,9 @@
       <h3>SGLang 运行时架构</h3>
       <p>
         调用方 → HTTP Server → TokenizerManager → Scheduler → TpModelWorker → KV Cache 的请求主路径，
-        进程/通信拓扑（ZMQ IPC）、前缀缓存复用、KV 显存池与鉴权信任边界。
+        以及返回链路 Scheduler <code>--BatchTokenIDOutput--&gt;</code> DetokenizerManager
+        <code>--BatchStrOutput--&gt;</code> TokenizerManager <code>--文本分片--&gt;</code> HTTP Server SSE；
+        另含进程/通信拓扑（ZMQ IPC）、前缀缓存复用、KV 显存池与鉴权信任边界。
       </p>
       <div class="meta">
         <span class="chip">overview/sglang-runtime-architecture.html</span>
