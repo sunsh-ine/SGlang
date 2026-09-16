@@ -137,12 +137,26 @@
         <span class="chip">源 JSON</span>
       </div>
     </a>
+    <a class="card" href="components/sglang-scheduler-cpu-gpu-timeline.html">
+      <h3>Scheduler 同步 / Overlap：CPU–GPU 时间线</h3>
+      <p>
+        同一个调度循环的两种写法：<code>event_loop_normal</code> 里 CPU 阻塞等 GPU 算完，
+        GPU 在 CPU 组批与结算期间全部空转；<code>event_loop_overlap</code> 里 <code>run_batch</code> 只下发，
+        CPU 等上一批返回并处理结果的同时 GPU 已在算当前批 —— 同样 3 批，30 → 22.5 单位（示意刻度）。
+      </p>
+      <div class="meta">
+        <span class="chip">components/sglang-scheduler-cpu-gpu-timeline.html</span>
+        <span class="chip">timeline</span>
+        <span class="chip">生成脚本 .generate.py</span>
+      </div>
+    </a>
   </div>
 
   <footer>
-    每张图都是自包含 HTML：可离线打开，支持深色/浅色、节点搜索、路径探测、语义视图与 PNG/SVG 导出；
-    同目录 <code>.json</code> 是 Archify 的 typed JSON 源，改一处即可重新渲染。由
-    <a href="https://github.com/tt-a1i/archify">Archify</a> 生成。
+    每张图都是自包含 HTML：可离线打开。Archify 生成的两张图支持深色/浅色、节点搜索、路径探测、语义视图与
+    PNG/SVG 导出，同目录 <code>.json</code> 是它的 typed JSON 源，改一处即可重新渲染；
+    时间线图由同目录 <code>.generate.py</code>（纯标准库）算出几何后写出 HTML，改数据重跑即可。
+    由 <a href="https://github.com/tt-a1i/archify">Archify</a> 与一份独立脚本生成。
   </footer>
 </main>
 </body>

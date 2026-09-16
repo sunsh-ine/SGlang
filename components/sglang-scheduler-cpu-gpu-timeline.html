@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scheduler 同步 / Overlap 事件循环：CPU–GPU 时间线</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9; --panel: #ffffff; --border: #e3e6ea; --ink: #16181d; --muted: #6b7280;
+    --accent: #0891b2; --chip: #f1f3f5;
+    --b-plan: #0891b2; --b-launch: #0e7490; --b-wait: #d97706; --b-wait-bg: #fef3c7;
+    --b-process: #7c3aed; --b-gpu: #ea580c; --b-idle: #9ca3af; --b-idle-bg: #f3f4f6;
+    --on-solid: #ffffff; --ink-wait: #92400e; --ink-idle: #4b5563;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --border: #262b33; --ink: #e8eaed; --muted: #9aa1ab;
+      --accent: #22d3ee; --chip: #1e232b;
+      --b-plan: #22d3ee; --b-launch: #0e7490; --b-wait: #f59e0b; --b-wait-bg: #2a2113;
+      --b-process: #a78bfa; --b-gpu: #fb923c; --b-idle: #6b7280; --b-idle-bg: #1c2128;
+      --on-solid: #08111a; --ink-wait: #fcd34d; --ink-idle: #9aa1ab;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 48px 24px 64px; background: var(--bg); color: var(--ink); line-height: 1.6;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1060px; margin: 0 auto; }
+  h1 { margin: 0 0 8px; font-size: 26px; letter-spacing: -0.01em; }
+  .lede { margin: 0 0 6px; color: var(--muted); font-size: 13.5px; }
+  code {
+    background: var(--chip); border-radius: 4px; padding: 1px 6px;
+    font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace; font-size: 12.5px;
+  }
+  .stage { margin: 26px 0 16px; padding: 20px 24px 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  svg.timeline { width: 100%; height: auto; display: block; }
+  .panel-title { font-size: 13.5px; font-weight: 700; fill: var(--ink); }
+  .row-label { font-size: 12px; fill: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .bar-label { font-size: 11px; text-anchor: middle; font-weight: 600; }
+  .bar-tip { font-size: 10px; text-anchor: middle; fill: var(--muted); }
+  .span-guide { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 3; }
+  .span-label { font-size: 11px; fill: var(--muted); font-weight: 600; }
+  .note-guide { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 2 2; opacity: .8; }
+  .note-label { font-size: 10.5px; fill: var(--accent); text-anchor: middle; }
+  .axis { stroke: var(--border); stroke-width: 1.2; }
+  .tick { stroke: var(--border); stroke-width: 1; }
+  .tick-label { font-size: 10px; fill: var(--muted); text-anchor: middle; }
+  .axis-label { font-size: 10.5px; fill: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 2px 0 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--muted); }
+  .legend li { display: flex; align-items: center; gap: 7px; }
+  .swatch { width: 14px; height: 10px; border-radius: 3px; display: inline-block; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; margin-top: 22px; }
+  .card { padding: 16px 18px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  .card h3 { margin: 0 0 8px; font-size: 14px; }
+  .card ul { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--muted); }
+  .card li { margin-bottom: 5px; }
+  .note { margin-top: 18px; color: var(--muted); font-size: 12.5px; }
+  footer { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Scheduler 同步 / Overlap 事件循环：CPU–GPU 时间线</h1>
+  <p class="lede">
+    横轴为时间，两个面板共用同一刻度、同一起点：上面是 <code>event_loop_normal</code>，下面是 <code>event_loop_overlap</code>；各 3 批（A/B/C）。
+  </p>
+  <p class="lede">
+    同色块 = CPU 占用；橙色 = GPU 前向 + 采样；纱纹 = 等待（CPU 阻塞 / GPU 空转）。
+  </p>
+
+  <div class="stage">
+<svg class="timeline" viewBox="0 0 768 420" role="img"
+     aria-label="SGLang Scheduler 同步与 overlap 事件循环的 CPU GPU 时间线">
+  <defs>
+    <pattern id="hatch-wait" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" fill="var(--b-wait-bg)"/>
+      <line x1="0" y1="0" x2="0" y2="7" stroke="var(--b-wait)" stroke-width="2.4"/>
+    </pattern>
+    <pattern id="hatch-idle" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" fill="var(--b-idle-bg)"/>
+      <line x1="0" y1="0" x2="0" y2="7" stroke="var(--b-idle)" stroke-width="2"/>
+    </pattern>
+  </defs>
+<text class="panel-title" x="0" y="30">① 同步：event_loop_normal（scheduler.py:1906）</text>
+<text class="row-label" x="0" y="69">CPU · Scheduler</text>
+<rect x="124" y="48" width="36" height="34" rx="4" fill="var(--b-plan)" stroke="var(--b-plan)"/>
+<text class="bar-label" x="142" y="69" fill="var(--on-solid)">组A</text>
+<rect x="160" y="48" width="108" height="34" rx="4" fill="url(#hatch-wait)" stroke="var(--b-wait)"/>
+<text class="bar-label" x="214" y="69" fill="var(--ink-wait)">等 A（阻塞）</text>
+<rect x="268" y="48" width="36" height="34" rx="4" fill="var(--b-process)" stroke="var(--b-process)"/>
+<text class="bar-label" x="286" y="69" fill="var(--on-solid)">处理A</text>
+<rect x="304" y="48" width="36" height="34" rx="4" fill="var(--b-plan)" stroke="var(--b-plan)"/>
+<text class="bar-label" x="322" y="69" fill="var(--on-solid)">组B</text>
+<rect x="340" y="48" width="108" height="34" rx="4" fill="url(#hatch-wait)" stroke="var(--b-wait)"/>
+<text class="bar-label" x="394" y="69" fill="var(--ink-wait)">等 B（阻塞）</text>
+<rect x="448" y="48" width="36" height="34" rx="4" fill="var(--b-process)" stroke="var(--b-process)"/>
+<text class="bar-label" x="466" y="69" fill="var(--on-solid)">处理B</text>
+<rect x="484" y="48" width="36" height="34" rx="4" fill="var(--b-plan)" stroke="var(--b-plan)"/>
+<text class="bar-label" x="502" y="69" fill="var(--on-solid)">组C</text>
+<rect x="520" y="48" width="108" height="34" rx="4" fill="url(#hatch-wait)" stroke="var(--b-wait)"/>
+<text class="bar-label" x="574" y="69" fill="var(--ink-wait)">等 C（阻塞）</text>
+<rect x="628" y="48" width="36" height="34" rx="4" fill="var(--b-process)" stroke="var(--b-process)"/>
+<text class="bar-label" x="646" y="69" fill="var(--on-solid)">处理C</text>
+<text class="row-label" x="0" y="119">GPU · 前向 + 采样</text>
+<rect x="124" y="98" width="36" height="34" rx="4" fill="url(#hatch-idle)" stroke="var(--b-idle)"/>
+<text class="bar-label" x="142" y="119" fill="var(--ink-idle)">空转</text>
+<rect x="160" y="98" width="108" height="34" rx="4" fill="var(--b-gpu)" stroke="var(--b-gpu)"/>
+<text class="bar-label" x="214" y="119" fill="var(--on-solid)">算A</text>
+<rect x="268" y="98" width="72" height="34" rx="4" fill="url(#hatch-idle)" stroke="var(--b-idle)"/>
+<text class="bar-label" x="304" y="119" fill="var(--ink-idle)">空转</text>
+<rect x="340" y="98" width="108" height="34" rx="4" fill="var(--b-gpu)" stroke="var(--b-gpu)"/>
+<text class="bar-label" x="394" y="119" fill="var(--on-solid)">算B</text>
+<rect x="448" y="98" width="72" height="34" rx="4" fill="url(#hatch-idle)" stroke="var(--b-idle)"/>
+<text class="bar-label" x="484" y="119" fill="var(--ink-idle)">空转</text>
+<rect x="520" y="98" width="108" height="34" rx="4" fill="var(--b-gpu)" stroke="var(--b-gpu)"/>
+<text class="bar-label" x="574" y="119" fill="var(--on-solid)">算C</text>
+<rect x="628" y="98" width="36" height="34" rx="4" fill="url(#hatch-idle)" stroke="var(--b-idle)"/>
+<text class="bar-label" x="646" y="119" fill="var(--ink-idle)">空转</text>
+<line class="span-guide" x1="664" y1="34" x2="664" y2="138"/>
+<text class="span-label" x="672" y="42">30 单位</text>
+<line class="note-guide" x1="160" y1="140" x2="268" y2="140"/>
+<text class="note-label" x="214" y="152">run_batch 返回时 GPU 已算完</text>
+<line class="note-guide" x1="268" y1="140" x2="340" y2="140"/>
+<text class="note-label" x="304" y="169">GPU 空转 12/30 单位</text>
+<text class="panel-title" x="0" y="214">② Overlap：event_loop_overlap（scheduler.py:1941）</text>
+<text class="row-label" x="0" y="253">CPU · Scheduler</text>
+<rect x="124" y="232" width="36" height="34" rx="4" fill="var(--b-plan)" stroke="var(--b-plan)"/>
+<text class="bar-label" x="142" y="253" fill="var(--on-solid)">组A</text>
+<rect x="160" y="232" width="9" height="34" rx="4" fill="var(--b-launch)" stroke="var(--b-launch)"/>
+<rect x="169" y="232" width="36" height="34" rx="4" fill="var(--b-plan)" stroke="var(--b-plan)"/>
+<text class="bar-label" x="187" y="253" fill="var(--on-solid)">组B</text>
+<rect x="205" y="232" width="9" height="34" rx="4" fill="var(--b-launch)" stroke="var(--b-launch)"/>
+<rect x="214" y="232" width="63" height="34" rx="4" fill="url(#hatch-wait)" stroke="var(--b-wait)"/>
+<text class="bar-label" x="245.5" y="253" fill="var(--ink-wait)">等A返回</text>
+<rect x="277" y="232" width="36" height="34" rx="4" fill="var(--b-process)" stroke="var(--b-process)"/>
+<text class="bar-label" x="295" y="253" fill="var(--on-solid)">处理A</text>
+<rect x="313" y="232" width="36" height="34" rx="4" fill="var(--b-plan)" stroke="var(--b-plan)"/>
+<text class="bar-label" x="331" y="253" fill="var(--on-solid)">组C</text>
+<rect x="349" y="232" width="9" height="34" rx="4" fill="var(--b-launch)" stroke="var(--b-launch)"/>
+<rect x="358" y="232" width="27" height="34" rx="4" fill="url(#hatch-wait)" stroke="var(--b-wait)"/>
+<text class="bar-label" x="371.5" y="253" fill="var(--ink-wait)">等B</text>
+<rect x="385" y="232" width="36" height="34" rx="4" fill="var(--b-process)" stroke="var(--b-process)"/>
+<text class="bar-label" x="403" y="253" fill="var(--on-solid)">处理B</text>
+<rect x="421" y="232" width="72" height="34" rx="4" fill="url(#hatch-wait)" stroke="var(--b-wait)"/>
+<text class="bar-label" x="457" y="253" fill="var(--ink-wait)">等C返回</text>
+<rect x="493" y="232" width="36" height="34" rx="4" fill="var(--b-process)" stroke="var(--b-process)"/>
+<text class="bar-label" x="511" y="253" fill="var(--on-solid)">处理C</text>
+<text class="row-label" x="0" y="303">GPU · 前向 + 采样</text>
+<rect x="124" y="282" width="45" height="34" rx="4" fill="url(#hatch-idle)" stroke="var(--b-idle)"/>
+<text class="bar-label" x="146.5" y="303" fill="var(--ink-idle)">空转</text>
+<rect x="169" y="282" width="108" height="34" rx="4" fill="var(--b-gpu)" stroke="var(--b-gpu)"/>
+<text class="bar-label" x="223" y="303" fill="var(--on-solid)">算A</text>
+<rect x="277" y="282" width="108" height="34" rx="4" fill="var(--b-gpu)" stroke="var(--b-gpu)"/>
+<text class="bar-label" x="331" y="303" fill="var(--on-solid)">算B</text>
+<rect x="385" y="282" width="108" height="34" rx="4" fill="var(--b-gpu)" stroke="var(--b-gpu)"/>
+<text class="bar-label" x="439" y="303" fill="var(--on-solid)">算C</text>
+<line class="span-guide" x1="529" y1="218" x2="529" y2="322"/>
+<text class="span-label" x="537" y="226">22.5 单位</text>
+<line class="note-guide" x1="205" y1="324" x2="214" y2="324"/>
+<text class="note-label" x="209.5" y="336">launch B 早于算A 结束 → GPU 不空转</text>
+<line class="note-guide" x1="277" y1="324" x2="313" y2="324"/>
+<text class="note-label" x="295" y="353">处理A 与 算B 重叠</text>
+<line class="note-guide" x1="421" y1="324" x2="493" y2="324"/>
+<text class="note-label" x="457" y="353">等待上一批（copy_done）</text>
+  <line class="axis" x1="124" y1="386" x2="664" y2="386"/>
+  <line class="tick" x1="124" y1="386" x2="124" y2="394"/>
+<text class="tick-label" x="124" y="408">0</text>
+<line class="tick" x1="142" y1="386" x2="142" y2="391"/>
+<line class="tick" x1="160" y1="386" x2="160" y2="391"/>
+<line class="tick" x1="178" y1="386" x2="178" y2="391"/>
+<line class="tick" x1="196" y1="386" x2="196" y2="391"/>
+<line class="tick" x1="214" y1="386" x2="214" y2="394"/>
+<text class="tick-label" x="214" y="408">5</text>
+<line class="tick" x1="232" y1="386" x2="232" y2="391"/>
+<line class="tick" x1="250" y1="386" x2="250" y2="391"/>
+<line class="tick" x1="268" y1="386" x2="268" y2="391"/>
+<line class="tick" x1="286" y1="386" x2="286" y2="391"/>
+<line class="tick" x1="304" y1="386" x2="304" y2="394"/>
+<text class="tick-label" x="304" y="408">10</text>
+<line class="tick" x1="322" y1="386" x2="322" y2="391"/>
+<line class="tick" x1="340" y1="386" x2="340" y2="391"/>
+<line class="tick" x1="358" y1="386" x2="358" y2="391"/>
+<line class="tick" x1="376" y1="386" x2="376" y2="391"/>
+<line class="tick" x1="394" y1="386" x2="394" y2="394"/>
+<text class="tick-label" x="394" y="408">15</text>
+<line class="tick" x1="412" y1="386" x2="412" y2="391"/>
+<line class="tick" x1="430" y1="386" x2="430" y2="391"/>
+<line class="tick" x1="448" y1="386" x2="448" y2="391"/>
+<line class="tick" x1="466" y1="386" x2="466" y2="391"/>
+<line class="tick" x1="484" y1="386" x2="484" y2="394"/>
+<text class="tick-label" x="484" y="408">20</text>
+<line class="tick" x1="502" y1="386" x2="502" y2="391"/>
+<line class="tick" x1="520" y1="386" x2="520" y2="391"/>
+<line class="tick" x1="538" y1="386" x2="538" y2="391"/>
+<line class="tick" x1="556" y1="386" x2="556" y2="391"/>
+<line class="tick" x1="574" y1="386" x2="574" y2="394"/>
+<text class="tick-label" x="574" y="408">25</text>
+<line class="tick" x1="592" y1="386" x2="592" y2="391"/>
+<line class="tick" x1="610" y1="386" x2="610" y2="391"/>
+<line class="tick" x1="628" y1="386" x2="628" y2="391"/>
+<line class="tick" x1="646" y1="386" x2="646" y2="391"/>
+<line class="tick" x1="664" y1="386" x2="664" y2="394"/>
+<text class="tick-label" x="664" y="408">30</text>
+  <text class="axis-label" x="678" y="390">时间 →</text>
+</svg>
+  </div>
+  <ul class="legend">
+    <li><span class="swatch" style="background: var(--b-plan)"></span>收与组批（ingest_requests / get_next_batch_to_run）</li>
+    <li><span class="swatch" style="background: var(--b-launch)"></span>launch（run_batch 仅下发）</li>
+    <li><span class="swatch" style="background: var(--b-wait)"></span>CPU 阻塞等待</li>
+    <li><span class="swatch" style="background: var(--b-process)"></span>处理结果（process_batch_result）</li>
+    <li><span class="swatch" style="background: var(--b-gpu)"></span>GPU 前向 + 采样</li>
+    <li><span class="swatch" style="background: var(--b-idle)"></span>GPU 空转</li>
+  </ul>
+
+  <div class="cards">
+    <div class="card">
+      <h3>代码对照</h3>
+      <ul>
+        <li>同步：<code>result = self.run_batch(batch)</code> 返回时 GPU 已算完，随后 <code>process_batch_result</code></li>
+        <li>Overlap：<code>run_batch</code> 只在 forward_stream 上 launch，立即返回，结果入 <code>result_queue</code></li>
+        <li>同一迭代内的 <code>pop_and_process()</code> 处理上一批（此时 GPU 在算当前批）</li>
+        <li>等待点：<code>process_batch_result</code> 内部对 <code>result.copy_done.synchronize()</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>为什么它能重叠</h3>
+      <ul>
+        <li>两条 CUDA stream：调度侧 <code>schedule_stream</code> 与前向 <code>forward_stream</code></li>
+        <li>每轮只需 CPU 完成“收件 + 组批 + launch”，总量小于一批 GPU 计算时间，GPU 就不会断料</li>
+        <li>每轮 <code>_apply_war_barrier()</code> 保证调度侧下一次写入不越过前向的读</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>何时退回同步</h3>
+      <ul>
+        <li>首批无可重叠；无 batch 时走 <code>on_idle()</code></li>
+        <li>连续两个 prefill 批会被 <code>is_disable_overlap_for_batch</code> 拉回同步（换 TTFT）</li>
+        <li>需要 grammar 同步的投机场景同样不重叠</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="note">
+    刻度为示意值（一批 GPU 前向 + 采样 = 6 单位，CPU 收与组批 = 2、处理结果 = 2、launch = 0.5），
+    用于说明重叠关系而非实测耗时；真实比例取决于模型、batch size 与 prefill/decode 比例。
+    行为依据 <code>sgl-project/sglang @ bdf8886a</code>。
+  </p>
+
+  <footer>
+    单文件离线可打开，随系统深/浅色。
+    作为 <a href="https://github.com/tt-a1i/archify">Archify</a> 图集的补充：Archify 五种图型中最接近的是 sequence（时间轴向下，用 activation 表耗时），横向甘特图需自定义。
+  </footer>
+</main>
+</body>
+</html>
