@@ -13,44 +13,32 @@
           "batch",
           "pack",
           "runf",
-          "graph",
+          "calc",
           "sample",
           "result",
           "back"
         ],
-        "note": "Scheduler 同进程直调，ScheduleBatch 打包成 ForwardBatch，执行后采样并把结果回传。"
+        "note": "Scheduler 同进程直调，ScheduleBatch 打包成 ForwardBatch，本 rank 执行后采样并把结果回传。"
       },
       {
         "id": "kv-path",
         "label": "KV 读写",
         "focus": [
-          "graph",
+          "calc",
           "kv"
         ],
-        "note": "前向里写新 token 的 KV、读历史 KV；池子由 ModelRunner 持有，槽位由 Scheduler 分配。"
-      },
-      {
-        "id": "exceptions",
-        "label": "例外路径",
-        "focus": [
-          "runf",
-          "graph",
-          "sample",
-          "result"
-        ],
-        "note": "非 PP 末 rank 不回 logits；overlap 下采样延迟触发；spec verify 与 prefill-only 不采样。"
+        "note": "前向里写新 token 的 KV、读历史 KV；池子在 ModelRunner 内，槽位由 Scheduler 分配。"
       },
       {
         "id": "parallel",
         "label": "多卡维度",
         "focus": [
           "runf",
-          "graph",
-          "comm",
+          "calc",
           "sample",
-          "kv"
+          "result"
         ],
-        "note": "TP：每 rank 算切片 + 每层集合通信；PP：只有末段出 logits/采样；EP / DP-attention 见卡片。"
+        "note": "TP：每 rank 跑本份计算 + 每层集合通信；PP：只有末段出 logits 并采样；EP / DP-attention 见卡片。"
       }
     ]
   },
@@ -61,11 +49,11 @@
     },
     {
       "id": "worker",
-      "label": "TpModelWorker（每 TP rank 一个）"
+      "label": "TpModelWorker（含本 rank GPU 计算）"
     },
     {
-      "id": "gpu",
-      "label": "ModelRunner 资源 · GPU"
+      "id": "res",
+      "label": "GPU 共享资源"
     }
   ],
   "phases": [
@@ -77,15 +65,15 @@
     },
     {
       "id": "exec",
-      "label": "前向与采样",
+      "label": "执行与采样",
       "fromCol": 2,
-      "toCol": 3,
+      "toCol": 4,
       "variant": "emphasis"
     },
     {
       "id": "report",
       "label": "组装与回传",
-      "fromCol": 4,
+      "fromCol": 5,
       "toCol": 5,
       "variant": "dashed"
     }
@@ -94,7 +82,7 @@
     "batch",
     "pack",
     "runf",
-    "graph",
+    "calc",
     "sample",
     "result",
     "back"
@@ -131,9 +119,9 @@
       "width": 132
     },
     {
-      "id": "graph",
-      "lane": "gpu",
-      "col": 2,
+      "id": "calc",
+      "lane": "worker",
+      "col": 3,
       "type": "cloud",
       "label": "本 rank GPU 计算",
       "sublabel": "图重放 / eager",
@@ -141,18 +129,8 @@
       "width": 132
     },
     {
-      "id": "comm",
-      "lane": "gpu",
-      "col": 1,
-      "type": "cloud",
-      "label": "TP 集合通信",
-      "sublabel": "all-reduce / all-gather",
-      "tag": "NCCL",
-      "width": 132
-    },
-    {
       "id": "kv",
-      "lane": "gpu",
+      "lane": "res",
       "col": 3,
       "type": "database",
       "label": "KV 池",
@@ -162,7 +140,7 @@
     {
       "id": "sample",
       "lane": "worker",
-      "col": 3,
+      "col": 4,
       "type": "backend",
       "label": "采样",
       "sublabel": "sample + logprobs",
@@ -172,7 +150,7 @@
     {
       "id": "result",
       "lane": "worker",
-      "col": 4,
+      "col": 5,
       "type": "backend",
       "label": "组装结果",
       "sublabel": "token ids + logits",
@@ -195,7 +173,9 @@
       "from": "batch",
       "to": "pack",
       "label": "同进程直调",
-      "role": "main"
+      "role": "main",
+      "fromSide": "right",
+      "toSide": "top"
     },
     {
       "id": "fwd",
@@ -207,47 +187,20 @@
     {
       "id": "exec",
       "from": "runf",
-      "to": "graph",
+      "to": "calc",
       "label": "前向执行",
-      "role": "main"
-    },
-    {
-      "id": "tp-send",
-      "from": "graph",
-      "to": "comm",
-      "label": "发本地分片",
-      "variant": "dashed",
-      "role": "async"
-    },
-    {
-      "id": "tp-recv",
-      "from": "comm",
-      "to": "graph",
-      "label": "收聚合结果",
-      "variant": "dashed",
-      "role": "async"
-    },
-    {
-      "id": "kv-write",
-      "from": "graph",
-      "to": "kv",
-      "label": "写入 KV",
-      "role": "main"
-    },
-    {
-      "id": "kv-read",
-      "from": "kv",
-      "to": "graph",
-      "label": "读取 KV",
-      "variant": "dashed",
-      "role": "branch"
+      "role": "main",
+      "fromSide": "right",
+      "toSide": "left"
     },
     {
       "id": "logits",
-      "from": "graph",
+      "from": "calc",
       "to": "sample",
       "label": "logits",
-      "role": "return"
+      "role": "return",
+      "fromSide": "right",
+      "toSide": "left"
     },
     {
       "id": "token",
@@ -262,7 +215,32 @@
       "to": "back",
       "label": "结果回传",
       "variant": "dashed",
-      "role": "return"
+      "role": "return",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "kv-write",
+      "from": "calc",
+      "to": "kv",
+      "label": "写入 KV",
+      "role": "main",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDx": -48,
+      "labelDy": 30
+    },
+    {
+      "id": "kv-read",
+      "from": "kv",
+      "to": "calc",
+      "label": "读取 KV",
+      "variant": "dashed",
+      "role": "branch",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDx": 48,
+      "labelDy": -6
     }
   ],
   "cards": [
