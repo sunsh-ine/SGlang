@@ -150,10 +150,24 @@
         <span class="chip">生成脚本 .generate.py</span>
       </div>
     </a>
+    <a class="card" href="components/sglang-request-roundtrip.html">
+      <h3>请求往返：请求下行与 token 回流</h3>
+      <p>
+        端到端六方时序：客户端 → HTTP Server → TokenizerManager →（ZMQ）Scheduler → TpModelWorker；
+        回程 <code>BatchTokenIDOutput</code>（只有 token ids）→ DetokenizerManager 增量解码 →
+        <code>BatchStrOutput</code> → TokenizerManager 写回 <code>out_queue</code> → SSE 到客户端。
+        另标出断连 abort 与控制类回包这条反向通道。
+      </p>
+      <div class="meta">
+        <span class="chip">components/sglang-request-roundtrip.html</span>
+        <span class="chip">sequence</span>
+        <span class="chip">源 JSON</span>
+      </div>
+    </a>
   </div>
 
   <footer>
-    每张图都是自包含 HTML：可离线打开。Archify 生成的两张图支持深色/浅色、节点搜索、路径探测、语义视图与
+    每张图都是自包含 HTML：可离线打开。Archify 生成的三张图支持深色/浅色、节点搜索、路径探测、语义视图与
     PNG/SVG 导出，同目录 <code>.json</code> 是它的 typed JSON 源，改一处即可重新渲染；
     时间线图由同目录 <code>.generate.py</code>（纯标准库）算出几何后写出 HTML，改数据重跑即可。
     由 <a href="https://github.com/tt-a1i/archify">Archify</a> 与一份独立脚本生成。

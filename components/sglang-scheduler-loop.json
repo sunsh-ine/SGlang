@@ -8,11 +8,21 @@
     "legend": {
       "mode": "auto",
       "entries": {
-        "frontend": { "label": "请求 / 输出接口" },
-        "backend": { "label": "调度组件" },
-        "database": { "label": "排队 / 状态" },
-        "cloud": { "label": "GPU 计算" },
-        "messagebus": { "label": "传输通道" }
+        "frontend": {
+          "label": "请求 / 输出接口"
+        },
+        "backend": {
+          "label": "调度组件"
+        },
+        "database": {
+          "label": "排队 / 状态"
+        },
+        "cloud": {
+          "label": "GPU 计算"
+        },
+        "messagebus": {
+          "label": "传输通道"
+        }
       }
     },
     "views": [
@@ -71,7 +81,7 @@
     },
     {
       "id": "out",
-      "label": "出口 · DetokenizerManager 及其他消费者"
+      "label": "出口 · Detokenizer → TokenizerManager → 客户端"
     }
   ],
   "phases": [
@@ -190,8 +200,8 @@
       "lane": "out",
       "col": 5,
       "type": "frontend",
-      "label": "流式 token 输出",
-      "sublabel": "Detokenizer → SSE",
+      "label": "DetokenizerManager",
+      "sublabel": "token ids → 文本",
       "width": 150
     },
     {
@@ -304,7 +314,7 @@
       "title": "Scheduler 下发什么",
       "items": [
         "每批：ScheduleBatch → Worker",
-        "token：BatchTokenIDOutput → Detokenizer",
+        "token ids → Detokenizer → Tokenizer → SSE",
         "控制响应、指标、PD 的 KV 搬运"
       ]
     },

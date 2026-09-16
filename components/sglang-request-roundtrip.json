@@ -1,0 +1,280 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "SGLang 请求往返：请求下行与 token 回流",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [
+      1080,
+      580
+    ],
+    "views": [
+      {
+        "id": "request-down",
+        "label": "请求下行",
+        "focus": [
+          "client",
+          "http",
+          "tokenizer",
+          "sched",
+          "worker"
+        ],
+        "note": "HTTP 收下请求，分词后经 ZMQ 交给 Scheduler，组批后下发前向。"
+      },
+      {
+        "id": "token-up",
+        "label": "token 回流",
+        "focus": [
+          "sched",
+          "detok",
+          "tokenizer",
+          "http",
+          "client"
+        ],
+        "note": "Scheduler 只发 token ids，Detokenizer 转文本，TokenizerManager 才回给客户端。"
+      },
+      {
+        "id": "control-back",
+        "label": "反向控制",
+        "focus": [
+          "client",
+          "http",
+          "tokenizer",
+          "sched"
+        ],
+        "note": "断连时 abort 从客户端方向回到 Scheduler；控制类回包走另一条直连通道。"
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "client",
+      "type": "external",
+      "label": "客户端",
+      "sublabel": "HTTP / SSE"
+    },
+    {
+      "id": "http",
+      "type": "frontend",
+      "label": "HTTP Server",
+      "sublabel": "FastAPI · 主进程"
+    },
+    {
+      "id": "tokenizer",
+      "type": "backend",
+      "label": "TokenizerManager",
+      "sublabel": "主进程 · 分词与回包"
+    },
+    {
+      "id": "sched",
+      "type": "backend",
+      "label": "Scheduler",
+      "sublabel": "子进程 · 连续批调度"
+    },
+    {
+      "id": "worker",
+      "type": "cloud",
+      "label": "TpModelWorker",
+      "sublabel": "ModelRunner · GPU 前向"
+    },
+    {
+      "id": "detok",
+      "type": "backend",
+      "label": "DetokenizerManager",
+      "sublabel": "子进程 · id → 文本"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 242,
+      "label": "① 请求下行（主进程）"
+    },
+    {
+      "from": 252,
+      "to": 334,
+      "label": "② 子进程：组批 + 前向 + 出 token ids"
+    },
+    {
+      "from": 344,
+      "to": 430,
+      "label": "③ 回流：转文本 → SSE（逐片重复）"
+    },
+    {
+      "from": 442,
+      "to": 520,
+      "label": "④ 反向：断连 → AbortReq"
+    }
+  ],
+  "messages": [
+    {
+      "id": "post-generate",
+      "from": "client",
+      "to": "http",
+      "y": 168,
+      "label": "POST /generate（stream）",
+      "variant": "emphasis"
+    },
+    {
+      "id": "http-tokenizer",
+      "from": "http",
+      "to": "tokenizer",
+      "y": 198,
+      "label": "进程内调用 generate_request",
+      "variant": "default"
+    },
+    {
+      "id": "tokenizer-sched",
+      "from": "tokenizer",
+      "to": "sched",
+      "y": 228,
+      "label": "TokenizedGenerateReqInput（ZMQ PUSH）",
+      "variant": "emphasis"
+    },
+    {
+      "id": "sched-worker",
+      "from": "sched",
+      "to": "worker",
+      "y": 262,
+      "label": "run_batch：ScheduleBatch → ForwardBatch",
+      "variant": "emphasis"
+    },
+    {
+      "id": "worker-sched",
+      "from": "worker",
+      "to": "sched",
+      "y": 292,
+      "label": "next_token_ids + logits",
+      "variant": "return"
+    },
+    {
+      "id": "sched-detok",
+      "from": "sched",
+      "to": "detok",
+      "y": 322,
+      "label": "BatchTokenIDOutput（token ids）",
+      "variant": "emphasis"
+    },
+    {
+      "id": "detok-tokenizer",
+      "from": "detok",
+      "to": "tokenizer",
+      "y": 356,
+      "label": "BatchStrOutput（增量解码文本）",
+      "variant": "emphasis"
+    },
+    {
+      "id": "tokenizer-http",
+      "from": "tokenizer",
+      "to": "http",
+      "y": 386,
+      "label": "ReqState.out_queue 分片",
+      "variant": "default"
+    },
+    {
+      "id": "http-client",
+      "from": "http",
+      "to": "client",
+      "y": 416,
+      "label": "SSE data: {text, finish_reason}",
+      "variant": "return"
+    },
+    {
+      "id": "client-abort",
+      "from": "client",
+      "to": "http",
+      "y": 452,
+      "label": "断连 / 取消",
+      "variant": "dashed"
+    },
+    {
+      "id": "tokenizer-abort",
+      "from": "tokenizer",
+      "to": "sched",
+      "y": 482,
+      "label": "AbortReq（ZMQ PUSH）",
+      "variant": "dashed"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "http",
+      "from": 162,
+      "to": 244,
+      "type": "frontend"
+    },
+    {
+      "participant": "tokenizer",
+      "from": 192,
+      "to": 240,
+      "type": "backend"
+    },
+    {
+      "participant": "sched",
+      "from": 222,
+      "to": 330,
+      "type": "backend"
+    },
+    {
+      "participant": "worker",
+      "from": 256,
+      "to": 296,
+      "type": "cloud"
+    },
+    {
+      "participant": "detok",
+      "from": 316,
+      "to": 360,
+      "type": "backend"
+    },
+    {
+      "participant": "tokenizer",
+      "from": 350,
+      "to": 392,
+      "type": "backend"
+    },
+    {
+      "participant": "http",
+      "from": 378,
+      "to": 430,
+      "type": "frontend"
+    },
+    {
+      "participant": "tokenizer",
+      "from": 472,
+      "to": 492,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "为什么中间还有 Detokenizer",
+      "items": [
+        "Scheduler 只产出 token ids",
+        "Detokenizer 只转新增 token（read_offsets）",
+        "TokenizerManager 持有请求状态与连接"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "谁最终回给客户端",
+      "items": [
+        "BatchStrOutput → ReqState.out_queue",
+        "HTTP 分片 → StreamingResponse（SSE）",
+        "非 stream 请求一次性返回结果"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "两条通道别混淆",
+      "items": [
+        "生成结果：Scheduler → Detokenizer → Tokenizer",
+        "控制类：Scheduler 直连 Tokenizer",
+        "例外：skip_tokenizer_init / Rust server"
+      ]
+    }
+  ]
+}
