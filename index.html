@@ -199,10 +199,11 @@
     <a class="card" href="components/sglang-tp-model-worker.html">
       <h3>TpModelWorker：一次前向的打包、执行、回传</h3>
       <p>
-        和 Scheduler 同进程、每 TP rank 一个：<code>init_new</code> 把 ScheduleBatch 打包成 ForwardBatch
-        （input_ids / positions / out_cache_loc 等设备张量），执行时命中就重放 CUDA Graph、否则走 eager；
-        只有 PP 末 rank 采样，overlap 下改成 <code>delay_sample_func</code> 由 Scheduler 触发。
-        KV 池在这里读写（写新 token / 读历史），spec verify 与 prefill-only 不采样。
+        和 Scheduler 同进程、每 TP rank 一个：<b>每个 rank 都跑本份 GPU 计算</b>（attention/MLP 切片 +
+        每层 all-reduce / all-gather 集合通信），<code>init_new</code> 把 ScheduleBatch 打包成 ForwardBatch
+        （input_ids / positions / out_cache_loc）；命中就重放 CUDA Graph、否则 eager。
+        只有 <b>PP 末段</b>出 logits 并采样（TP 下 all-gather 后各 rank 独立采样结果一致），overlap 下改成
+        <code>delay_sample_func</code> 由 Scheduler 触发；KV 池读写、spec verify / prefill-only 不采样也标了。
       </p>
       <div class="meta">
         <span class="chip">components/sglang-tp-model-worker.html</span>

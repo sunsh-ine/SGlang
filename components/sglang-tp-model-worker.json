@@ -39,6 +39,18 @@
           "result"
         ],
         "note": "非 PP 末 rank 不回 logits；overlap 下采样延迟触发；spec verify 与 prefill-only 不采样。"
+      },
+      {
+        "id": "parallel",
+        "label": "多卡维度",
+        "focus": [
+          "runf",
+          "graph",
+          "comm",
+          "sample",
+          "kv"
+        ],
+        "note": "TP：每 rank 算切片 + 每层集合通信；PP：只有末段出 logits/采样；EP / DP-attention 见卡片。"
       }
     ]
   },
@@ -115,7 +127,7 @@
       "type": "backend",
       "label": "调前向",
       "sublabel": "model_runner.forward",
-      "tag": "PP 末 rank",
+      "tag": "每 rank 都跑",
       "width": 132
     },
     {
@@ -123,9 +135,19 @@
       "lane": "gpu",
       "col": 2,
       "type": "cloud",
-      "label": "图重放 / eager",
-      "sublabel": "cuda graph runner",
-      "tag": "命中即重放",
+      "label": "本 rank GPU 计算",
+      "sublabel": "图重放 / eager",
+      "tag": "每层集合通信",
+      "width": 132
+    },
+    {
+      "id": "comm",
+      "lane": "gpu",
+      "col": 1,
+      "type": "cloud",
+      "label": "TP 集合通信",
+      "sublabel": "all-reduce / all-gather",
+      "tag": "NCCL",
       "width": 132
     },
     {
@@ -144,7 +166,7 @@
       "type": "backend",
       "label": "采样",
       "sublabel": "sample + logprobs",
-      "tag": "可延迟",
+      "tag": "PP 末段",
       "width": 132
     },
     {
@@ -188,6 +210,22 @@
       "to": "graph",
       "label": "前向执行",
       "role": "main"
+    },
+    {
+      "id": "tp-send",
+      "from": "graph",
+      "to": "comm",
+      "label": "发本地分片",
+      "variant": "dashed",
+      "role": "async"
+    },
+    {
+      "id": "tp-recv",
+      "from": "comm",
+      "to": "graph",
+      "label": "收聚合结果",
+      "variant": "dashed",
+      "role": "async"
     },
     {
       "id": "kv-write",
@@ -239,11 +277,12 @@
     },
     {
       "dot": "emerald",
-      "title": "前向的两条路",
+      "title": "谁在算：TP / PP / EP",
       "items": [
-        "命中 can_run_graph → 重放 CUDA Graph",
-        "否则 eager：model.forward + logits",
-        "只有 PP 末 rank 采样，其余回 proxy"
+        "每个 TP rank 跑本份计算 + 每层集合通信",
+        "logits all-gather 后各 rank 都拿全量，采样一致",
+        "PP 按层切：只有末段出 logits 并采样",
+        "MoE 走 EP 分片；DP attention 按请求分 rank"
       ]
     },
     {
@@ -251,7 +290,7 @@
       "title": "采样时机与例外",
       "items": [
         "常规：前向返回后立即 model_runner.sample",
-        "overlap 下返回 delay_sample_func，由 Scheduler 触发",
+        "overlap 下改由 Scheduler 触发采样",
         "spec verify / prefill-only 不采样",
         "KV 池在 ModelRunner 内分配，Scheduler 拿槽位"
       ]
