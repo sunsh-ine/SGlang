@@ -1,0 +1,321 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "SGLang Scheduler 调度主循环",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": { "label": "请求 / 输出接口" },
+        "backend": { "label": "调度组件" },
+        "database": { "label": "排队 / 状态" },
+        "cloud": { "label": "GPU 计算" },
+        "messagebus": { "label": "传输通道" }
+      }
+    },
+    "views": [
+      {
+        "id": "one-iteration",
+        "label": "一轮调度主循环",
+        "focus": [
+          "req_in",
+          "ingest",
+          "wait_q",
+          "plan",
+          "dispatch",
+          "forward",
+          "finish",
+          "detok"
+        ],
+        "note": "从收到已分词请求，到把新 token 交给 Detokenizer 的完整一轮。"
+      },
+      {
+        "id": "dispatch-surface",
+        "label": "Scheduler 的出口",
+        "focus": [
+          "dispatch",
+          "forward",
+          "finish",
+          "detok",
+          "ctl_out",
+          "kv_out"
+        ],
+        "note": "每批向下发前向、逐轮回传新 token、控制类响应，以及 PD 分离下的 KV 搬运。"
+      },
+      {
+        "id": "retract",
+        "label": "显存不足时回退",
+        "focus": [
+          "plan",
+          "wait_q",
+          "dispatch"
+        ],
+        "note": "KV 不够时抢占运行中的请求，放回等待队列由下一轮重新组批。"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "up",
+      "label": "上游 · TokenizerManager 子进程"
+    },
+    {
+      "id": "sched",
+      "label": "Scheduler 子进程 · 调度主循环"
+    },
+    {
+      "id": "gpu",
+      "label": "执行 · TpModelWorker / ModelRunner"
+    },
+    {
+      "id": "out",
+      "label": "出口 · DetokenizerManager 及其他消费者"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake",
+      "label": "接收与入队",
+      "fromCol": 0,
+      "toCol": 2
+    },
+    {
+      "id": "commit",
+      "label": "组批与下发",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "report",
+      "label": "结算与回传",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "loop",
+      "label": "每轮迭代重复",
+      "lane": "sched",
+      "fromCol": 1,
+      "toCol": 5,
+      "variant": "emphasis"
+    }
+  ],
+  "mainPath": [
+    "req_in",
+    "ingest",
+    "wait_q",
+    "plan",
+    "dispatch",
+    "forward",
+    "finish",
+    "detok"
+  ],
+  "nodes": [
+    {
+      "id": "req_in",
+      "lane": "up",
+      "col": 0,
+      "type": "frontend",
+      "label": "请求消息",
+      "sublabel": "TokenizedGenerateReqInput",
+      "tag": "ZMQ PULL",
+      "width": 150
+    },
+    {
+      "id": "ingest",
+      "lane": "sched",
+      "col": 1,
+      "type": "backend",
+      "label": "收件与分发",
+      "sublabel": "process_input_requests",
+      "width": 150
+    },
+    {
+      "id": "wait_q",
+      "lane": "sched",
+      "col": 2,
+      "type": "database",
+      "label": "等待队列",
+      "sublabel": "waiting_queue",
+      "width": 140
+    },
+    {
+      "id": "plan",
+      "lane": "sched",
+      "col": 3,
+      "type": "backend",
+      "label": "组批决策",
+      "sublabel": "get_next_batch_to_run",
+      "tag": "前缀匹配 · 预算",
+      "width": 150
+    },
+    {
+      "id": "dispatch",
+      "lane": "sched",
+      "col": 4,
+      "type": "backend",
+      "label": "下发批次",
+      "sublabel": "run_batch",
+      "tag": "forward_batch_generation",
+      "width": 150
+    },
+    {
+      "id": "forward",
+      "lane": "gpu",
+      "col": 4,
+      "type": "cloud",
+      "label": "前向计算 + 采样",
+      "sublabel": "ModelRunner.forward",
+      "tag": "CUDA Graph",
+      "width": 150
+    },
+    {
+      "id": "finish",
+      "lane": "sched",
+      "col": 5,
+      "type": "backend",
+      "label": "结果结算",
+      "sublabel": "process_batch_result",
+      "width": 150,
+      "tag": "回写 token"
+    },
+    {
+      "id": "detok",
+      "lane": "out",
+      "col": 5,
+      "type": "frontend",
+      "label": "流式 token 输出",
+      "sublabel": "Detokenizer → SSE",
+      "width": 150
+    },
+    {
+      "id": "ctl_out",
+      "lane": "out",
+      "col": 1,
+      "type": "frontend",
+      "label": "控制类响应",
+      "sublabel": "清缓存 · 权重更新",
+      "width": 140
+    },
+    {
+      "id": "kv_out",
+      "lane": "out",
+      "col": 3,
+      "type": "messagebus",
+      "label": "KV 搬运",
+      "sublabel": "PD 分离 · Prefill → Decode",
+      "width": 150
+    }
+  ],
+  "edges": [
+    {
+      "id": "deliver-req",
+      "from": "req_in",
+      "to": "ingest",
+      "label": "已分词请求",
+      "role": "main"
+    },
+    {
+      "id": "enqueue",
+      "from": "ingest",
+      "to": "wait_q",
+      "label": "生成请求入队",
+      "role": "main"
+    },
+    {
+      "id": "pick",
+      "from": "wait_q",
+      "to": "plan",
+      "label": "取等待请求",
+      "role": "main"
+    },
+    {
+      "id": "form-batch",
+      "from": "plan",
+      "to": "dispatch",
+      "label": "本轮 ScheduleBatch",
+      "role": "main"
+    },
+    {
+      "id": "run-forward",
+      "from": "dispatch",
+      "to": "forward",
+      "role": "main"
+    },
+    {
+      "id": "return-result",
+      "from": "forward",
+      "to": "finish",
+      "label": "next_token_ids + logits",
+      "role": "return"
+    },
+    {
+      "id": "stream-out",
+      "from": "finish",
+      "to": "detok",
+      "label": "BatchTokenIDOutput",
+      "role": "main",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "control-reply",
+      "from": "ingest",
+      "to": "ctl_out",
+      "label": "控制类回包",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "retract",
+      "from": "plan",
+      "to": "wait_q",
+      "label": "KV 不足：抢占回退",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "kv-send",
+      "from": "forward",
+      "to": "kv_out",
+      "label": "KV 搬运",
+      "variant": "dashed",
+      "role": "async"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "上游给 Scheduler 什么",
+      "items": [
+        "请求：input_ids + 采样参数",
+        "批量 / 嵌入：BatchTokenized*",
+        "控制：AbortReq、FlushCache 等"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Scheduler 下发什么",
+      "items": [
+        "每批：ScheduleBatch → Worker",
+        "token：BatchTokenIDOutput → Detokenizer",
+        "控制响应、指标、PD 的 KV 搬运"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "每轮循环的约束",
+      "items": [
+        "前缀命中决定 prefill 省多少算力",
+        "token 预算与显存决定批大小",
+        "KV 不足先抢占回退，再重排"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,450 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SGLang 运行时架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/sgl-project/sglang.git",
+      "revision": "bdf8886ad386685b4d089c8e66725b9280533591"
+    },
+    "views": [
+      {
+        "id": "request-path",
+        "label": "请求主路径",
+        "focus": [
+          "clients",
+          "http_server",
+          "tokenizer_mgr",
+          "scheduler",
+          "worker",
+          "kv_pool"
+        ],
+        "note": "调用方请求经分词、调度到 GPU 前向，KV 写入显存池。"
+      },
+      {
+        "id": "prefix-reuse",
+        "label": "前缀复用",
+        "focus": [
+          "scheduler",
+          "prefix_cache",
+          "kv_pool",
+          "worker"
+        ],
+        "note": "最长前缀命中的 KV 被复用，逐出时把块归还给分配器。"
+      }
+    ],
+    "viewBox": [
+      1345,
+      610
+    ]
+  },
+  "components": [
+    {
+      "id": "clients",
+      "type": "external",
+      "label": "调用方",
+      "sublabel": "OpenAI / Anthropic SDK",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "http_server",
+      "type": "frontend",
+      "label": "HTTP Server",
+      "sublabel": "FastAPI + uvicorn :30000",
+      "pos": [
+        280,
+        300
+      ],
+      "size": [
+        150,
+        62
+      ],
+      "sources": [
+        {
+          "path": "python/sglang/srt/entrypoints/http_server.py",
+          "line": 459,
+          "label": "FastAPI 应用"
+        },
+        {
+          "path": "python/sglang/launch_server.py",
+          "line": 17,
+          "label": "CLI 入口"
+        }
+      ]
+    },
+    {
+      "id": "tokenizer_mgr",
+      "type": "backend",
+      "label": "TokenizerManager",
+      "sublabel": "主进程 · 分词与分发",
+      "pos": [
+        540,
+        300
+      ],
+      "size": [
+        150,
+        62
+      ],
+      "sources": [
+        {
+          "path": "python/sglang/srt/managers/tokenizer_manager.py",
+          "line": 399,
+          "label": "TokenizerManager"
+        },
+        {
+          "path": "python/sglang/srt/managers/tokenizer_manager.py",
+          "line": 564,
+          "label": "ZMQ PUSH 至 Scheduler"
+        }
+      ]
+    },
+    {
+      "id": "scheduler",
+      "type": "backend",
+      "label": "Scheduler",
+      "sublabel": "子进程 · 连续批调度",
+      "pos": [
+        800,
+        300
+      ],
+      "size": [
+        150,
+        62
+      ],
+      "sources": [
+        {
+          "path": "python/sglang/srt/managers/scheduler.py",
+          "line": 425,
+          "label": "class Scheduler"
+        },
+        {
+          "path": "python/sglang/srt/managers/scheduler.py",
+          "line": 1906,
+          "label": "事件主循环"
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "TpModelWorker",
+      "sublabel": "ModelRunner · GPU 前向",
+      "pos": [
+        1060,
+        300
+      ],
+      "size": [
+        160,
+        62
+      ],
+      "sources": [
+        {
+          "path": "python/sglang/srt/managers/tp_worker.py",
+          "line": 312,
+          "label": "TpModelWorker"
+        },
+        {
+          "path": "python/sglang/srt/model_executor/model_runner.py",
+          "line": 299,
+          "label": "ModelRunner"
+        }
+      ]
+    },
+    {
+      "id": "cuda_runtime",
+      "type": "external",
+      "label": "CUDA / PyTorch 运行时",
+      "sublabel": "driver · NCCL",
+      "pos": [
+        1060,
+        60
+      ],
+      "size": [
+        150,
+        58
+      ],
+      "sources": [
+        {
+          "path": "docker/Dockerfile",
+          "line": 216,
+          "label": "PyTorch cu13 wheel 源"
+        },
+        {
+          "path": "python/pyproject.toml",
+          "line": 89,
+          "label": "torch 版本约束"
+        }
+      ]
+    },
+    {
+      "id": "detokenizer",
+      "type": "backend",
+      "label": "DetokenizerManager",
+      "sublabel": "子进程 · token → 文本",
+      "pos": [
+        540,
+        150
+      ],
+      "size": [
+        150,
+        58
+      ],
+      "sources": [
+        {
+          "path": "python/sglang/srt/managers/detokenizer_manager.py",
+          "line": 102,
+          "label": "DetokenizerManager"
+        }
+      ]
+    },
+    {
+      "id": "hf_hub",
+      "type": "external",
+      "label": "HuggingFace Hub",
+      "sublabel": "权重 / ModelScope",
+      "pos": [
+        800,
+        60
+      ],
+      "size": [
+        150,
+        58
+      ],
+      "sources": [
+        {
+          "path": "python/sglang/srt/model_loader/weight_utils.py",
+          "line": 378,
+          "label": "snapshot_download"
+        }
+      ]
+    },
+    {
+      "id": "prefix_cache",
+      "type": "database",
+      "label": "前缀缓存索引",
+      "sublabel": "UnifiedRadixCache",
+      "pos": [
+        800,
+        460
+      ],
+      "size": [
+        150,
+        62
+      ],
+      "sources": [
+        {
+          "path": "python/sglang/srt/mem_cache/unified_radix_cache.py",
+          "line": 160,
+          "label": "UnifiedRadixCache"
+        },
+        {
+          "path": "python/sglang/srt/mem_cache/registry.py",
+          "line": 228,
+          "label": "create_tree_cache"
+        }
+      ]
+    },
+    {
+      "id": "kv_pool",
+      "type": "database",
+      "label": "KV Cache 池",
+      "sublabel": "显存分页块",
+      "pos": [
+        1060,
+        460
+      ],
+      "size": [
+        160,
+        62
+      ],
+      "sources": [
+        {
+          "path": "python/sglang/srt/mem_cache/memory_pool.py",
+          "line": 1949,
+          "label": "MHATokenToKVPool"
+        },
+        {
+          "path": "python/sglang/srt/mem_cache/allocator/paged.py",
+          "line": 116,
+          "label": "PagedTokenToKVPoolAllocator"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "SGLang 单机服务栈",
+      "wraps": [
+        "http_server",
+        "tokenizer_mgr",
+        "scheduler",
+        "worker",
+        "detokenizer",
+        "prefix_cache",
+        "kv_pool"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "API Key / Bearer 鉴权",
+      "wraps": [
+        "http_server"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "clients-http",
+      "from": "clients",
+      "to": "http_server",
+      "label": "HTTP/gRPC",
+      "variant": "emphasis"
+    },
+    {
+      "id": "http-tokenizer",
+      "from": "http_server",
+      "to": "tokenizer_mgr",
+      "label": "进程内调用",
+      "variant": "emphasis"
+    },
+    {
+      "id": "tokenizer-scheduler",
+      "from": "tokenizer_mgr",
+      "to": "scheduler",
+      "label": "ZMQ IPC",
+      "variant": "emphasis"
+    },
+    {
+      "id": "scheduler-worker",
+      "from": "scheduler",
+      "to": "worker",
+      "label": "batch 前向",
+      "variant": "emphasis"
+    },
+    {
+      "id": "worker-kv",
+      "from": "worker",
+      "to": "kv_pool",
+      "label": "读写 KV",
+      "labelDy": 24
+    },
+    {
+      "id": "scheduler-prefix",
+      "from": "scheduler",
+      "to": "prefix_cache",
+      "label": "前缀匹配",
+      "labelDy": 24
+    },
+    {
+      "id": "prefix-kv",
+      "from": "prefix_cache",
+      "to": "kv_pool",
+      "label": "槽位索引"
+    },
+    {
+      "id": "scheduler-detokenizer",
+      "from": "scheduler",
+      "to": "detokenizer",
+      "label": "输出 token",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "detokenizer-tokenizer",
+      "from": "detokenizer",
+      "to": "tokenizer_mgr",
+      "label": "回传文本",
+      "variant": "dashed",
+      "labelDy": 24,
+      "labelDx": -20,
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "http-clients",
+      "from": "http_server",
+      "to": "clients",
+      "label": "SSE 流式响应",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "top"
+    },
+    {
+      "id": "hub-worker",
+      "from": "hf_hub",
+      "to": "worker",
+      "label": "加载权重",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          875,
+          160
+        ],
+        [
+          1140,
+          160
+        ]
+      ]
+    },
+    {
+      "id": "worker-cuda",
+      "from": "worker",
+      "to": "cuda_runtime",
+      "label": "kernel 调用",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          1285,
+          331
+        ],
+        [
+          1285,
+          89
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "主路径与进程拓扑",
+      "items": [
+        "请求链路：调用方 → HTTP Server → TokenizerManager → Scheduler → TpModelWorker → KV Cache",
+        "HTTP Server、Engine、TokenizerManager 同在主进程；Scheduler 与 DetokenizerManager 各为独立子进程",
+        "主进程与子进程之间用 ZMQ PUSH/PULL；返回链路为 Scheduler → DetokenizerManager → TokenizerManager → SSE"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "KV 与前缀复用",
+      "items": [
+        "KV 张量常驻显存池，块索引由 PagedTokenToKVPoolAllocator 分配与回收",
+        "UnifiedRadixCache 按最长前缀命中复用已算 KV，逐出时把块归还分配器",
+        "decode/prefill 走 CUDA Graph 重放；EAGLE 投机解码与 PD 分离是可选路径"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "外部依赖与信任边界",
+      "items": [
+        "权重来自 HuggingFace Hub 或 ModelScope，运行时容器固化 CUDA + PyTorch + NCCL",
+        "--api-key / --admin-api-key 走 Bearer 常量时间校验，/health 与 /metrics 始终免鉴权",
+        "可选入口 sgl-model-gateway（Rust）负责负载均衡与服务发现，本图未展开"
+      ]
+    }
+  ]
+}
