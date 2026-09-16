@@ -170,7 +170,7 @@
       "from": "tokenizer",
       "to": "http",
       "y": 386,
-      "label": "ReqState.out_queue 分片",
+      "label": "ReqState.out_list 分片",
       "variant": "default"
     },
     {
@@ -262,7 +262,7 @@
       "dot": "emerald",
       "title": "谁最终回给客户端",
       "items": [
-        "BatchStrOutput → ReqState.out_queue",
+        "BatchStrOutput → ReqState.out_list（event 唤醒读取）",
         "HTTP 分片 → StreamingResponse（SSE）",
         "非 stream 请求一次性返回结果"
       ]

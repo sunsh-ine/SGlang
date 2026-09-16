@@ -1,0 +1,284 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "TokenizerManager：请求怎么进来、怎么下发、回包怎么出去",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "ingest-and-dispatch",
+        "label": "收下与下发",
+        "focus": [
+          "req_in",
+          "state",
+          "tokenize",
+          "dispatch",
+          "sched"
+        ],
+        "note": "HTTP 进来后建状态、分词、组 TokenizedGenerateReqInput，经 ZMQ 单向下发。"
+      },
+      {
+        "id": "return-and-stream",
+        "label": "回程与输出",
+        "focus": [
+          "detok",
+          "recv",
+          "stream",
+          "sse"
+        ],
+        "note": "Detokenizer 回传文本，按 rid 归位后由等待循环 yield 给 HTTP。"
+      },
+      {
+        "id": "abort",
+        "label": "断连中止",
+        "focus": [
+          "stream",
+          "dispatch",
+          "sched"
+        ],
+        "note": "等待循环发现客户端断连，生成 AbortReq 回到 Scheduler。"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "http",
+      "label": "主进程 · HTTP 层（FastAPI）"
+    },
+    {
+      "id": "tm",
+      "label": "主进程 · TokenizerManager（本图主角）"
+    },
+    {
+      "id": "peer",
+      "label": "子进程 · Scheduler / DetokenizerManager"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake",
+      "label": "入口",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "work",
+      "label": "处理与下发",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "back",
+      "label": "回传与输出",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "loop",
+      "label": "回程由 handle_loop 异步驱动",
+      "lane": "tm",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "emphasis"
+    }
+  ],
+  "mainPath": [
+    "req_in",
+    "state",
+    "tokenize",
+    "dispatch",
+    "sched",
+    "detok",
+    "recv",
+    "stream",
+    "sse"
+  ],
+  "nodes": [
+    {
+      "id": "req_in",
+      "lane": "http",
+      "col": 0,
+      "type": "frontend",
+      "label": "HTTP 请求",
+      "sublabel": "POST /generate",
+      "tag": "同一进程",
+      "width": 132
+    },
+    {
+      "id": "state",
+      "lane": "tm",
+      "col": 1,
+      "type": "database",
+      "label": "建状态并登记",
+      "sublabel": "rid → ReqState",
+      "width": 132
+    },
+    {
+      "id": "tokenize",
+      "lane": "tm",
+      "col": 2,
+      "type": "backend",
+      "label": "分词与校验",
+      "sublabel": "_tokenize_one_request",
+      "tag": "长度 / LoRA",
+      "width": 132
+    },
+    {
+      "id": "dispatch",
+      "lane": "tm",
+      "col": 3,
+      "type": "backend",
+      "label": "下发 Scheduler",
+      "sublabel": "TokenizedGenerateReqInput",
+      "tag": "ZMQ PUSH",
+      "width": 132
+    },
+    {
+      "id": "sched",
+      "lane": "peer",
+      "col": 3,
+      "type": "cloud",
+      "label": "Scheduler",
+      "sublabel": "组批 / 前向 / 采样",
+      "width": 132
+    },
+    {
+      "id": "detok",
+      "lane": "peer",
+      "col": 4,
+      "type": "messagebus",
+      "label": "DetokenizerManager",
+      "sublabel": "token ids → 文本",
+      "width": 132
+    },
+    {
+      "id": "recv",
+      "lane": "tm",
+      "col": 4,
+      "type": "backend",
+      "label": "回包循环",
+      "sublabel": "_handle_batch_output",
+      "tag": "按 rid 归位",
+      "width": 132
+    },
+    {
+      "id": "stream",
+      "lane": "tm",
+      "col": 5,
+      "type": "backend",
+      "label": "取出并 yield",
+      "sublabel": "state.out_list",
+      "tag": "event 唤醒",
+      "width": 132
+    },
+    {
+      "id": "sse",
+      "lane": "http",
+      "col": 5,
+      "type": "frontend",
+      "label": "SSE 回客户端",
+      "sublabel": "StreamingResponse",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "id": "in",
+      "from": "req_in",
+      "to": "state",
+      "label": "GenerateReqInput",
+      "role": "main"
+    },
+    {
+      "id": "init",
+      "from": "state",
+      "to": "tokenize",
+      "label": "过 pause / 读锁",
+      "role": "main"
+    },
+    {
+      "id": "tok",
+      "from": "tokenize",
+      "to": "dispatch",
+      "label": "input_ids",
+      "role": "main"
+    },
+    {
+      "id": "push",
+      "from": "dispatch",
+      "to": "sched",
+      "label": "ZMQ 下发",
+      "role": "main"
+    },
+    {
+      "id": "to-detok",
+      "from": "sched",
+      "to": "detok",
+      "label": "BatchTokenIDOutput",
+      "role": "main"
+    },
+    {
+      "id": "back",
+      "from": "detok",
+      "to": "recv",
+      "label": "BatchStrOutput",
+      "role": "return"
+    },
+    {
+      "id": "drain",
+      "from": "recv",
+      "to": "stream",
+      "label": "写 out_list",
+      "role": "main"
+    },
+    {
+      "id": "yield",
+      "from": "stream",
+      "to": "sse",
+      "label": "分片 yield",
+      "role": "main"
+    },
+    {
+      "id": "abort",
+      "from": "stream",
+      "to": "dispatch",
+      "label": "断连 → AbortReq",
+      "variant": "dashed",
+      "role": "branch"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "进来后先做什么",
+      "items": [
+        "normalize + 默认优先级，建 ReqState 并登记到 rid_to_state",
+        "过 pause 门与权重更新读锁，避免 LoRA / 权重切换期间误用",
+        "_tokenize_one_request 分词并做长度校验，组出 TokenizedGenerateReqInput"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "下发与回程怎么接",
+      "items": [
+        "_send_one_request → ZMQ PUSH 给 Scheduler（单向下发，不等回包）",
+        "handle_loop 异步收 BatchStrOutput，按 rid 找到 state 写 out_list + event",
+        "等待循环 drain out_list 逐个 yield 分片；finish 后删掉 rid_to_state"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "边界与例外",
+      "items": [
+        "断连：等待循环里 request.is_disconnected() → abort_request → AbortReq 回 Scheduler",
+        "非流式：等 finished 一次性返回；增量流式会合并已排队分片",
+        "多 tokenizer worker：MultiTokenizerRouter 前置，按 http_worker_ipc 推回对应进程"
+      ]
+    }
+  ]
+}

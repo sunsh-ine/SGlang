@@ -167,10 +167,24 @@
         <span class="chip">源 JSON</span>
       </div>
     </a>
+    <a class="card" href="components/sglang-tokenizer-manager.html">
+      <h3>TokenizerManager：进来、下发、回包</h3>
+      <p>
+        单看主进程里的 TokenizerManager：HTTP 进来后建 <code>ReqState</code> 并登记 <code>rid_to_state</code>、
+        过 pause 门与权重读锁、分词校验，再组 <code>TokenizedGenerateReqInput</code> 经 ZMQ 单向下发；
+        回程由 <code>handle_loop</code> 异步收 <code>BatchStrOutput</code>，按 rid 写 <code>out_list</code> + <code>event</code>，
+        等待循环 drain 后 yield 给 <code>StreamingResponse</code>；断连则 <code>AbortReq</code> 回到 Scheduler。
+      </p>
+      <div class="meta">
+        <span class="chip">components/sglang-tokenizer-manager.html</span>
+        <span class="chip">workflow</span>
+        <span class="chip">源 JSON</span>
+      </div>
+    </a>
   </div>
 
   <footer>
-    每张图都是自包含 HTML：可离线打开。Archify 生成的三张图支持深色/浅色、节点搜索、路径探测、语义视图与
+    每张图都是自包含 HTML：可离线打开。Archify 生成的图支持深色/浅色、节点搜索、路径探测、语义视图与
     PNG/SVG 导出，同目录 <code>.json</code> 是它的 typed JSON 源，改一处即可重新渲染；
     时间线图由同目录 <code>.generate.py</code>（纯标准库）算出几何后写出 HTML，改数据重跑即可。
     由 <a href="https://github.com/tt-a1i/archify">Archify</a> 与一份独立脚本生成。
