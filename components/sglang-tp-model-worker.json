@@ -1,0 +1,260 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "TpModelWorker：一次前向的打包、执行与回传",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "one-forward",
+        "label": "一次前向",
+        "focus": [
+          "batch",
+          "pack",
+          "runf",
+          "graph",
+          "sample",
+          "result",
+          "back"
+        ],
+        "note": "Scheduler 同进程直调，ScheduleBatch 打包成 ForwardBatch，执行后采样并把结果回传。"
+      },
+      {
+        "id": "kv-path",
+        "label": "KV 读写",
+        "focus": [
+          "graph",
+          "kv"
+        ],
+        "note": "前向里写新 token 的 KV、读历史 KV；池子由 ModelRunner 持有，槽位由 Scheduler 分配。"
+      },
+      {
+        "id": "exceptions",
+        "label": "例外路径",
+        "focus": [
+          "runf",
+          "graph",
+          "sample",
+          "result"
+        ],
+        "note": "非 PP 末 rank 不回 logits；overlap 下采样延迟触发；spec verify 与 prefill-only 不采样。"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "sched",
+      "label": "Scheduler（与 worker 同进程）"
+    },
+    {
+      "id": "worker",
+      "label": "TpModelWorker（每 TP rank 一个）"
+    },
+    {
+      "id": "gpu",
+      "label": "ModelRunner 资源 · GPU"
+    }
+  ],
+  "phases": [
+    {
+      "id": "pack",
+      "label": "下发与打包",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "exec",
+      "label": "前向与采样",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "report",
+      "label": "组装与回传",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "batch",
+    "pack",
+    "runf",
+    "graph",
+    "sample",
+    "result",
+    "back"
+  ],
+  "nodes": [
+    {
+      "id": "batch",
+      "lane": "sched",
+      "col": 0,
+      "type": "cloud",
+      "label": "下发批次",
+      "sublabel": "ScheduleBatch",
+      "tag": "run_batch",
+      "width": 132
+    },
+    {
+      "id": "pack",
+      "lane": "worker",
+      "col": 1,
+      "type": "backend",
+      "label": "打包 ForwardBatch",
+      "sublabel": "张量与索引",
+      "tag": "init_new",
+      "width": 132
+    },
+    {
+      "id": "runf",
+      "lane": "worker",
+      "col": 2,
+      "type": "backend",
+      "label": "调前向",
+      "sublabel": "model_runner.forward",
+      "tag": "PP 末 rank",
+      "width": 132
+    },
+    {
+      "id": "graph",
+      "lane": "gpu",
+      "col": 2,
+      "type": "cloud",
+      "label": "图重放 / eager",
+      "sublabel": "cuda graph runner",
+      "tag": "命中即重放",
+      "width": 132
+    },
+    {
+      "id": "kv",
+      "lane": "gpu",
+      "col": 3,
+      "type": "database",
+      "label": "KV 池",
+      "sublabel": "写新 token / 读历史",
+      "width": 132
+    },
+    {
+      "id": "sample",
+      "lane": "worker",
+      "col": 3,
+      "type": "backend",
+      "label": "采样",
+      "sublabel": "sample + logprobs",
+      "tag": "可延迟",
+      "width": 132
+    },
+    {
+      "id": "result",
+      "lane": "worker",
+      "col": 4,
+      "type": "backend",
+      "label": "组装结果",
+      "sublabel": "token ids + logits",
+      "tag": "copy_to_cpu",
+      "width": 132
+    },
+    {
+      "id": "back",
+      "lane": "sched",
+      "col": 5,
+      "type": "cloud",
+      "label": "结果结算",
+      "sublabel": "process_batch_result",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "id": "call",
+      "from": "batch",
+      "to": "pack",
+      "label": "同进程直调",
+      "role": "main"
+    },
+    {
+      "id": "fwd",
+      "from": "pack",
+      "to": "runf",
+      "label": "ForwardBatch",
+      "role": "main"
+    },
+    {
+      "id": "exec",
+      "from": "runf",
+      "to": "graph",
+      "label": "前向执行",
+      "role": "main"
+    },
+    {
+      "id": "kv-write",
+      "from": "graph",
+      "to": "kv",
+      "label": "写入 KV",
+      "role": "main"
+    },
+    {
+      "id": "kv-read",
+      "from": "kv",
+      "to": "graph",
+      "label": "读取 KV",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "logits",
+      "from": "graph",
+      "to": "sample",
+      "label": "logits",
+      "role": "return"
+    },
+    {
+      "id": "token",
+      "from": "sample",
+      "to": "result",
+      "label": "next_token_ids",
+      "role": "main"
+    },
+    {
+      "id": "report",
+      "from": "result",
+      "to": "back",
+      "label": "结果回传",
+      "variant": "dashed",
+      "role": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "进什么 / 出什么",
+      "items": [
+        "进：ScheduleBatch（reqs + KV 索引）",
+        "出：GenerationBatchResult（token ids）",
+        "init_new 打包 input_ids / positions / out_cache_loc"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "前向的两条路",
+      "items": [
+        "命中 can_run_graph → 重放 CUDA Graph",
+        "否则 eager：model.forward + logits",
+        "只有 PP 末 rank 采样，其余回 proxy"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "采样时机与例外",
+      "items": [
+        "常规：前向返回后立即 model_runner.sample",
+        "overlap 下返回 delay_sample_func，由 Scheduler 触发",
+        "spec verify / prefill-only 不采样",
+        "KV 池在 ModelRunner 内分配，Scheduler 拿槽位"
+      ]
+    }
+  ]
+}
