@@ -114,6 +114,7 @@
         调用方 → HTTP Server → TokenizerManager → Scheduler → TpModelWorker → KV Cache 的请求主路径，
         以及返回链路 Scheduler <code>--BatchTokenIDOutput--&gt;</code> DetokenizerManager
         <code>--BatchStrOutput--&gt;</code> TokenizerManager <code>--文本分片--&gt;</code> HTTP Server SSE；
+        采样出的 <code>next_token_ids</code> 回到 Scheduler，KV 池的写入与读取分成两条边。
         另含进程/通信拓扑（ZMQ IPC）、前缀缓存复用、KV 显存池与鉴权信任边界。
       </p>
       <div class="meta">

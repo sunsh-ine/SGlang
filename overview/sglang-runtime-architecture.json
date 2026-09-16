@@ -33,6 +33,19 @@
           "worker"
         ],
         "note": "最长前缀命中的 KV 被复用，逐出时把块归还给分配器。"
+      },
+      {
+        "id": "return-path",
+        "label": "token 回传",
+        "focus": [
+          "worker",
+          "scheduler",
+          "detokenizer",
+          "tokenizer_mgr",
+          "http_server",
+          "clients"
+        ],
+        "note": "采样出的 token 先回到 Scheduler，再经 Detokenizer 转文本、TokenizerManager 走 SSE 回客户端。"
       }
     ],
     "viewBox": [
@@ -335,8 +348,11 @@
       "id": "worker-kv",
       "from": "worker",
       "to": "kv_pool",
-      "label": "读写 KV",
-      "labelDy": 24
+      "label": "写入 KV",
+      "labelDy": 24,
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDx": -42
     },
     {
       "id": "scheduler-prefix",
@@ -435,6 +451,24 @@
           400
         ]
       ]
+    },
+    {
+      "id": "kv-read",
+      "from": "kv_pool",
+      "to": "worker",
+      "label": "读取 KV",
+      "labelDy": -64,
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDx": 47
+    },
+    {
+      "id": "worker-scheduler-return",
+      "from": "worker",
+      "to": "scheduler",
+      "label": "next_token_ids",
+      "variant": "dashed",
+      "labelDy": 42
     }
   ],
   "cards": [
@@ -451,7 +485,7 @@
       "dot": "emerald",
       "title": "KV 与前缀复用",
       "items": [
-        "KV 张量常驻显存池，块索引由 PagedTokenToKVPoolAllocator 分配与回收",
+        "KV 常驻显存池：prefill 写入、decode 读取并追加，块索引由分页分配器管理",
         "UnifiedRadixCache 按最长前缀命中复用已算 KV，逐出时把块归还分配器",
         "decode/prefill 走 CUDA Graph 重放；EAGLE 投机解码与 PD 分离是可选路径"
       ]
