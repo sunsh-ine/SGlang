@@ -1,0 +1,223 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "DetokenizerManager：token ids 怎么变成文本、又发给谁",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "main-flow",
+        "label": "主数据流",
+        "focus": [
+          "sched_out",
+          "recv",
+          "decode",
+          "send",
+          "tm_in"
+        ],
+        "note": "收批量 token ids → 增量解码 → 组 BatchStrOutput → 单向推给 TokenizerManager。"
+      },
+      {
+        "id": "incremental",
+        "label": "增量与缓存",
+        "focus": [
+          "decode",
+          "cache"
+        ],
+        "note": "decode_status 存 decode_ids 与三个偏移；半个 UTF-8 字符只发可打印前缀，下一轮带更多 token 重试。"
+      },
+      {
+        "id": "edges",
+        "label": "无回包的两条边",
+        "focus": [
+          "sched_out",
+          "recv",
+          "send",
+          "tm_in"
+        ],
+        "note": "上游只收不回、下游只发不收；唯一的双向读写发生在进程内的 decode_status。"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "up",
+      "label": "上游 · Scheduler 子进程"
+    },
+    {
+      "id": "detok",
+      "label": "DetokenizerManager 子进程（本图主角）"
+    },
+    {
+      "id": "down",
+      "label": "下游 · TokenizerManager 主进程"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake",
+      "label": "收件与分发",
+      "fromCol": 1,
+      "toCol": 1
+    },
+    {
+      "id": "decode",
+      "label": "增量解码",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "emit",
+      "label": "组包与推送",
+      "fromCol": 4,
+      "toCol": 4,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [],
+  "mainPath": [
+    "sched_out",
+    "recv",
+    "decode",
+    "send",
+    "tm_in"
+  ],
+  "nodes": [
+    {
+      "id": "sched_out",
+      "lane": "up",
+      "col": 1,
+      "type": "cloud",
+      "label": "Scheduler",
+      "sublabel": "采样出 token ids",
+      "tag": "ZMQ PUSH",
+      "width": 132
+    },
+    {
+      "id": "recv",
+      "lane": "detok",
+      "col": 1,
+      "type": "messagebus",
+      "label": "收件与分发",
+      "sublabel": "event_loop",
+      "tag": "ZMQ PULL",
+      "width": 132
+    },
+    {
+      "id": "decode",
+      "lane": "detok",
+      "col": 2,
+      "type": "backend",
+      "label": "增量解码",
+      "sublabel": "前后两段取差",
+      "tag": "只发新增",
+      "width": 132
+    },
+    {
+      "id": "cache",
+      "lane": "detok",
+      "col": 3,
+      "type": "database",
+      "label": "decode_status",
+      "sublabel": "按 rid 缓存",
+      "tag": "LimitedCapacity",
+      "width": 132
+    },
+    {
+      "id": "send",
+      "lane": "detok",
+      "col": 4,
+      "type": "backend",
+      "label": "组包并推送",
+      "sublabel": "BatchStrOutput",
+      "tag": "ZMQ PUSH",
+      "width": 132
+    },
+    {
+      "id": "tm_in",
+      "lane": "down",
+      "col": 4,
+      "type": "backend",
+      "label": "TokenizerManager",
+      "sublabel": "按 rid 写 out_list",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "id": "in",
+      "from": "sched_out",
+      "to": "recv",
+      "label": "BatchTokenIDOutput",
+      "role": "main"
+    },
+    {
+      "id": "lookup",
+      "from": "recv",
+      "to": "decode",
+      "label": "按 rid 取状态",
+      "role": "main"
+    },
+    {
+      "id": "state_write",
+      "from": "decode",
+      "to": "cache",
+      "label": "写偏移 + 文本",
+      "role": "main"
+    },
+    {
+      "id": "state_read",
+      "from": "cache",
+      "to": "decode",
+      "label": "读上次偏移",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "pack",
+      "from": "decode",
+      "to": "send",
+      "label": "new_text 逐条出队",
+      "role": "main"
+    },
+    {
+      "id": "out",
+      "from": "send",
+      "to": "tm_in",
+      "label": "BatchStrOutput",
+      "role": "main"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "进什么 / 出什么",
+      "items": [
+        "进：rids、decode_ids、read_offsets",
+        "出：BatchStrOutput（文本 + ids/usage）",
+        "routed_experts → base64；embedding 结果不解码、直接透传"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "增量解码怎么只发新增",
+      "items": [
+        "decode_status 存 decode_ids 与三个偏移",
+        "read 与 surr 两次 decode 取差 = 新增文本",
+        "finished 时删缓存并按 stop 词裁剪尾段"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "交互方向判定",
+      "items": [
+        "Scheduler → Detokenizer：单向，无回包",
+        "Detokenizer → TokenizerManager：单向",
+        "↔ decode_status：进程内双向读写",
+        "PUSH/PULL 无 ack：下游慢只积压，不回压"
+      ]
+    }
+  ]
+}

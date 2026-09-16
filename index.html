@@ -181,6 +181,21 @@
         <span class="chip">源 JSON</span>
       </div>
     </a>
+    <a class="card" href="components/sglang-detokenizer-manager.html">
+      <h3>DetokenizerManager：ids → 文本 → 归位</h3>
+      <p>
+        上游 Scheduler 单向送 <code>BatchTokenIDOutput</code>；进程内 <code>decode_status</code> 保存每请求的
+        <code>decode_ids</code> 与三个偏移，<code>surr</code> 与 <code>read</code> 两段各解一次、取差就是新增文本
+        （半个 UTF-8 字符只发可打印前缀、下轮重试）；组好 <code>BatchStrOutput</code> 后单向推给
+        TokenizerManager，多 worker 时按 <code>http_worker_ipc</code> 定向。图里标明了唯一的双向关系：
+        decode_status 的读写。
+      </p>
+      <div class="meta">
+        <span class="chip">components/sglang-detokenizer-manager.html</span>
+        <span class="chip">workflow</span>
+        <span class="chip">源 JSON</span>
+      </div>
+    </a>
   </div>
 
   <footer>
