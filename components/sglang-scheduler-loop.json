@@ -43,7 +43,7 @@
       },
       {
         "id": "dispatch-surface",
-        "label": "Scheduler 的出口",
+        "label": "下发的三个出口",
         "focus": [
           "dispatch",
           "forward",
@@ -51,7 +51,7 @@
           "detok",
           "kv_out"
         ],
-        "note": "每批向下发前向、逐轮回传新 token、控制类响应，以及 PD 分离下的 KV 搬运。"
+        "note": "每批向前下发、逐轮回传新 token，以及 PD 分离下的 KV 搬运。"
       },
       {
         "id": "retract",
