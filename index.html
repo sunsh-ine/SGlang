@@ -130,8 +130,8 @@
     <a class="card" href="components/sglang-scheduler-loop.html">
       <h3>Scheduler 调度主循环</h3>
       <p>
-        一轮迭代的完整过程：上游收到什么（已分词请求、中止与控制类消息），如何入队与组批，
-        下发什么（ScheduleBatch → 前向、BatchTokenIDOutput → Detokenizer、控制响应、PD 的 KV 搬运），
+        一轮迭代的完整过程：上游收到什么（已分词请求与批量请求），如何入队与组批，
+        下发什么（ScheduleBatch → 前向、BatchTokenIDOutput → Detokenizer、PD 的 KV 搬运），
         以及显存不足时的抢占回退。
       </p>
       <div class="meta">

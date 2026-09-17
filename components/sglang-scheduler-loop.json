@@ -49,7 +49,6 @@
           "forward",
           "finish",
           "detok",
-          "ctl_out",
           "kv_out"
         ],
         "note": "每批向下发前向、逐轮回传新 token、控制类响应，以及 PD 分离下的 KV 搬运。"
@@ -205,15 +204,6 @@
       "width": 150
     },
     {
-      "id": "ctl_out",
-      "lane": "out",
-      "col": 1,
-      "type": "frontend",
-      "label": "控制类响应",
-      "sublabel": "清缓存 · 权重更新",
-      "width": 140
-    },
-    {
       "id": "kv_out",
       "lane": "out",
       "col": 3,
@@ -275,14 +265,6 @@
       "toSide": "top"
     },
     {
-      "id": "control-reply",
-      "from": "ingest",
-      "to": "ctl_out",
-      "label": "控制类回包",
-      "variant": "dashed",
-      "role": "branch"
-    },
-    {
       "id": "retract",
       "from": "plan",
       "to": "wait_q",
@@ -315,7 +297,7 @@
       "items": [
         "每批：ScheduleBatch → Worker",
         "token ids → Detokenizer → Tokenizer → SSE",
-        "控制响应、指标、PD 的 KV 搬运"
+        "指标上报、PD 分离的 KV 搬运"
       ]
     },
     {
