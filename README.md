@@ -27,6 +27,7 @@
 | 图 | 在线地址 | 说明 |
 |---|---|---|
 | Radix Tree 请求插入过程 | https://sunsh-ine.github.io/SGlang/demos/radix-tree-insertion/ | 四步动画演示 prefix match、节点分裂、新增后缀插入与 KV 复用；示例序列 A / B / C |
+| Radix Tree 的 lock_ref 状态 | https://sunsh-ine.github.io/SGlang/demos/radix-tree-lockref/ | 三帧动画：A、B 共享 / 独占时的 lock_ref 计数，A 结束后归零，以及叶子被驱逐后的树 |
 
 ## 文件说明
 
@@ -35,6 +36,7 @@ index.html                                  目录页（GitHub Pages 入口）
 overview/sglang-runtime-architecture.html   整体架构
 components/*.html                           组件图（每张都是自包含 HTML，可离线打开）
 demos/radix-tree-insertion/index.html        Radix Tree 请求插入过程动画
+demos/radix-tree-lockref/index.html          Radix Tree 的 lock_ref 状态动画
 components/*.json                           Archify 的 typed JSON 源，改一处即可重新渲染
 components/sglang-scheduler-cpu-gpu-timeline.generate.py
                                             时间线图的生成脚本（纯标准库，改数据后重跑）

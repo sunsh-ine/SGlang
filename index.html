@@ -229,6 +229,18 @@
         <span class="chip">RadixAttention</span>
       </div>
     </a>
+    <a class="card" href="demos/radix-tree-lockref/">
+      <h3>Radix Tree 的 lock_ref 状态</h3>
+      <p>
+        三帧展示 A、B 的锁计数如何变化：共享路径 ref=2、各自叶子 ref=1；A 结束后 [40,50] 归零成为驱逐候选；
+        真正驱逐后只保留 B 的路径。节点颜色对应持有者集合，ref 数字直接标在节点上。
+      </p>
+      <div class="meta">
+        <span class="chip">demos/radix-tree-lockref/</span>
+        <span class="chip">step animation</span>
+        <span class="chip">lock_ref</span>
+      </div>
+    </a>
   </div>
 
   <footer>
