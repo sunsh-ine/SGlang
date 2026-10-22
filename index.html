@@ -213,6 +213,24 @@
     </a>
   </div>
 
+
+  <h2>缓存与复用</h2>
+  <div class="grid">
+    <a class="card" href="demos/radix-tree-insertion/">
+      <h3>Radix Tree 请求插入过程</h3>
+      <p>
+        四步动画：插入 A 建链 → 匹配 B 并在公共前缀边界分裂 → 只写入 B 的新增后缀
+        → 匹配 C 再次分裂，把 [80,90] 挂到 [10,20] 下。同步显示每个请求的命中 / 新增 token 数，
+        以及命中前缀的 KV 直接复用、无需重新 prefill 的关系。
+      </p>
+      <div class="meta">
+        <span class="chip">demos/radix-tree-insertion/</span>
+        <span class="chip">step animation</span>
+        <span class="chip">RadixAttention</span>
+      </div>
+    </a>
+  </div>
+
   <footer>
     每张图都是自包含 HTML：可离线打开。Archify 生成的图支持深色/浅色、节点搜索、路径探测、语义视图与
     PNG/SVG 导出，同目录 <code>.json</code> 是它的 typed JSON 源，改一处即可重新渲染；

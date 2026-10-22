@@ -21,12 +21,20 @@
 | DetokenizerManager：ids → 文本 → 归位 | https://sunsh-ine.github.io/SGlang/components/sglang-detokenizer-manager.html | `detokenizer_manager.py`（`init_ipc_channels:121`、`event_loop:179`、`_decode_batch_token_id_output:303`、`handle_batch_token_id_out:443`） |
 | TpModelWorker：一次前向的打包、执行、回传 | https://sunsh-ine.github.io/SGlang/components/sglang-tp-model-worker.html | `tp_worker.py:593/672`、`forward_batch_info.py:759`、`model_executor/model_runner.py:1628/1805/1900`、`layers/communicator.py:518`、`layers/logits_processor.py:421` |
 
+
+## 缓存与复用
+
+| 图 | 在线地址 | 说明 |
+|---|---|---|
+| Radix Tree 请求插入过程 | https://sunsh-ine.github.io/SGlang/demos/radix-tree-insertion/ | 四步动画演示 prefix match、节点分裂、新增后缀插入与 KV 复用；示例序列 A / B / C |
+
 ## 文件说明
 
 ```
 index.html                                  目录页（GitHub Pages 入口）
 overview/sglang-runtime-architecture.html   整体架构
 components/*.html                           组件图（每张都是自包含 HTML，可离线打开）
+demos/radix-tree-insertion/index.html        Radix Tree 请求插入过程动画
 components/*.json                           Archify 的 typed JSON 源，改一处即可重新渲染
 components/sglang-scheduler-cpu-gpu-timeline.generate.py
                                             时间线图的生成脚本（纯标准库，改数据后重跑）
