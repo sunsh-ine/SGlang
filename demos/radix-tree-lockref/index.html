@@ -8,232 +8,232 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     :root {
-      --color-paper: #f5f5f5;
-      --color-ink: #2d3142;
-      --color-muted: #4f5d75;
-      --color-soft: #7a8399;
-      --color-accent: #eb6c36;
-      --color-rule: rgba(45,49,66,0.12);
-      --state-shared: #2e5aa8;
-      --state-a: #4f6b43;
-      --state-b: #8a5f1e;
-      --state-evict: #b04a1e;
+      --paper: #f6f7f9;
+      --ink: #16181d;
+      --muted: #6b7280;
+      --soft: #9aa1ab;
+      --rule: #e3e6ea;
+      --blue: #2e5aa8;
+      --blue-tint: #e8eef9;
+      --sage: #4f6b43;
+      --sage-tint: #edf2e9;
+      --mustard: #8a5f1e;
+      --mustard-tint: #f6efe3;
+      --coral: #b04a1e;
+      --coral-tint: #fbeee8;
+      --grey: #5b6577;
+      --grey-fill: #f3f4f6;
+      --line: #8a93a3;
       --font-sans: 'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
       --font-serif: 'Instrument Serif', 'Noto Serif', 'Noto Serif SC', 'Songti SC', serif;
-      --font-mono: 'Geist Mono', ui-monospace, monospace;
+      --font-mono: 'Geist Mono', 'DejaVu Sans Mono', ui-monospace, monospace;
       --motion-fast: 160ms;
       --motion-step: 480ms;
-      --motion-hold: 1200ms;
-      --motion-total: 3600ms;
-      --motion-ease: cubic-bezier(.2,.8,.2,1);
+      --motion-hold: 1500ms;
+      --motion-total: 4500ms;
+      --ease: cubic-bezier(.2,.8,.2,1);
     }
     body {
-      margin: 0;
-      min-height: 100vh;
-      padding: 48px 32px 64px;
-      color: var(--color-ink);
-      background: var(--color-paper);
-      font-family: var(--font-sans);
+      margin: 0; min-height: 100vh; padding: 48px 32px 64px;
+      color: var(--ink); background: var(--paper); font-family: var(--font-sans);
     }
     [data-motion-root] { width: min(100%, 1200px); margin: 0 auto; }
-    .eyebrow {
-      margin: 0 0 10px;
-      color: var(--color-muted);
-      font: 500 11px/1.4 var(--font-mono);
-      letter-spacing: .18em;
-      text-transform: uppercase;
-    }
+    .eyebrow { margin: 0 0 10px; color: var(--muted); font: 500 11px/1.4 var(--font-mono); letter-spacing: .18em; text-transform: uppercase; }
     .back-nav { margin: 0 0 18px; }
     .back-nav a {
-      color: var(--color-muted);
+      color: var(--muted);
       font: 500 12px/1.4 var(--font-sans);
       text-decoration: none;
     }
-    .back-nav a:hover { color: var(--color-accent); }
+    .back-nav a:hover { color: #eb6c36; }
     h1 { margin: 0 0 12px; font: 400 34px/1.15 var(--font-serif); }
-    .subtitle {
-      margin: 0 0 24px;
-      max-width: 82ch;
-      color: var(--color-muted);
-      font-size: 14px;
-      line-height: 1.65;
-    }
+    .subtitle { margin: 0 0 20px; max-width: 88ch; color: var(--muted); font-size: 14px; line-height: 1.65; }
 
-    .rail {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin: 0 0 20px;
-      padding: 0;
-      list-style: none;
+    .requests { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 0 16px; }
+    .req {
+      --card: var(--grey); --card-tint: var(--grey-fill);
+      padding: 12px 16px; border: 1px solid var(--card); border-radius: 8px;
+      background: var(--card-tint);
+      transition: background .3s var(--ease), border-color .3s var(--ease);
     }
-    .rail li {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      border: 1px solid var(--color-rule);
-      border-radius: 8px;
-      background: #ffffff;
-      color: var(--color-muted);
-      transition: background var(--motion-fast) var(--motion-ease),
-                  border-color var(--motion-fast) var(--motion-ease),
-                  color var(--motion-fast) var(--motion-ease);
-    }
+    .req-line { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--card); }
+    .req-sub { position: relative; height: 16px; margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .req-sub span { position: absolute; left: 0; }
+    .wait, .run, .end { opacity: 0; transition: opacity .28s var(--ease); }
+    .req-line .wait, .req-line .run, .req-line .end { position: absolute; }
+    .req-line { position: relative; height: 20px; }
+    .req-line span:not(.dot) { position: absolute; left: 16px; }
+    [data-step-current="0"] .req .wait { opacity: 1; }
+    [data-step-current="1"] .req-a .run,
+    [data-step-current="1"] .req-b .run,
+    [data-step-current="2"] .req-b .run,
+    [data-step-current="3"] .req-b .run { opacity: 1; }
+    [data-step-current="2"] .req-a .end,
+    [data-step-current="3"] .req-a .end { opacity: 1; }
+    [data-step-current="0"] .req { --card: var(--grey); --card-tint: var(--grey-fill); }
+    [data-step-current="1"] .req-a { --card: var(--sage); --card-tint: var(--sage-tint); }
+    [data-step-current="2"] .req-a,
+    [data-step-current="3"] .req-a { --card: #9aa1ab; --card-tint: #f7f8fa; border-style: dashed; }
+    [data-step-current="1"] .req-b,
+    [data-step-current="2"] .req-b,
+    [data-step-current="3"] .req-b { --card: var(--mustard); --card-tint: var(--mustard-tint); }
+
+    .rail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 20px; padding: 0; list-style: none; }
+    .rail li { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--rule); border-radius: 8px; background: #fff; color: var(--muted); transition: background .16s, border-color .16s, color .16s; }
     .rail .n { font: 500 11px/1 var(--font-mono); letter-spacing: .08em; }
     .rail .t { font: 600 13px/1 var(--font-sans); }
     [data-step-current="1"] .rail li:nth-child(1),
     [data-step-current="2"] .rail li:nth-child(2),
-    [data-step-current="3"] .rail li:nth-child(3) {
-      background: var(--color-ink);
-      border-color: var(--color-ink);
-      color: var(--color-paper);
-    }
+    [data-step-current="3"] .rail li:nth-child(3) { background: var(--ink); border-color: var(--ink); color: #fff; }
     [data-step-current="1"] .rail li:nth-child(1) .n,
     [data-step-current="2"] .rail li:nth-child(2) .n,
-    [data-step-current="3"] .rail li:nth-child(3) .n {
-      color: var(--color-accent);
-    }
+    [data-step-current="3"] .rail li:nth-child(3) .n { color: #f0a07a; }
 
-    .figure { margin: 0 0 4px; overflow-x: auto; }
+    .figure { margin: 0; overflow-x: auto; }
     svg { display: block; width: 100%; min-width: 960px; height: auto; }
 
-    .note {
-      margin: 16px 0 0;
-      max-width: 96ch;
-      color: var(--color-muted);
-      font-size: 12px;
-      line-height: 1.7;
+    .edge { fill: none; stroke: var(--line); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: opacity .3s var(--ease); }
+    .node .box, .node.root .box {
+      fill: var(--state-tint, var(--grey-fill));
+      stroke: var(--state, var(--grey));
+      stroke-width: 2;
+      transition: fill .32s var(--ease), stroke .32s var(--ease), stroke-dasharray .3s;
     }
-    .note code {
-      color: var(--color-ink);
-      font-family: var(--font-mono);
-      font-size: 11px;
-    }
+    .node .tok { fill: var(--ink); font-family: var(--font-mono); font-weight: 500; }
+    .root-tok { font-family: var(--font-sans) !important; font-weight: 600 !important; font-size: 28px !important; }
+    .badge-box { fill: #fff; stroke: var(--state, var(--grey)); stroke-width: 1; transition: stroke .32s; }
+    .ref { fill: var(--state, var(--grey)); font-family: var(--font-mono); font-size: 11px; font-weight: 600; opacity: 0; transition: opacity .28s var(--ease); }
+    .hold-label { fill: var(--muted); font-family: var(--font-sans); font-size: 11px; opacity: 0; transition: opacity .28s; }
+    .chip { opacity: 0; transition: opacity .28s; }
+    .chip rect { stroke-width: .9; }
+    .chip-a rect { fill: var(--sage-tint); stroke: var(--sage); }
+    .chip-a text { fill: var(--sage); font-family: var(--font-mono); font-size: 10px; }
+    .chip-b rect { fill: var(--mustard-tint); stroke: var(--mustard); }
+    .chip-b text { fill: var(--mustard); font-family: var(--font-mono); font-size: 10px; }
+    .no-holder { fill: var(--coral); font-family: var(--font-sans); font-size: 11px; font-weight: 600; opacity: 0; transition: opacity .28s; }
+    .ghost { opacity: 0; transition: opacity .35s var(--ease); pointer-events: none; }
+    .ghost-box { fill: none; stroke: #bfc0c0; stroke-width: 1; stroke-dasharray: 5,4; }
+    .ghost-tok { fill: #a9adb8; font-family: var(--font-mono); font-size: 28px; text-decoration: line-through; }
+    .ghost-badge { fill: none; stroke: #bfc0c0; stroke-dasharray: 3,2; }
+    .ghost-ref { fill: #a9adb8; font-family: var(--font-mono); font-size: 11px; }
+    .ghost-note { fill: var(--coral); font-family: var(--font-sans); font-size: 11px; font-weight: 600; }
 
-    /* Static source is complete. Only an initialized enhancement hides items. */
-    .motion-ready [data-motion-item] {
-      opacity: .12;
-      transform: translateY(8px);
-      transform-box: fill-box;
-      transform-origin: center;
-      transition: opacity var(--motion-step) var(--motion-ease),
-                  transform var(--motion-step) var(--motion-ease);
-    }
-    .motion-ready [data-motion-item].is-visible,
-    .motion-ready[data-frame="end"] [data-motion-item],
-    .motion-ready[data-frame="static"] [data-motion-item] {
-      opacity: 1;
-      transform: none;
-    }
+    /* state variables */
+    .n-1020, .n-30, .n-4050, .n-6070 { --state: var(--grey); --state-tint: var(--grey-fill); }
+    .n-4050 { transition: opacity .3s var(--ease); }
+    [data-step-current="1"] .n-1020,
+    [data-step-current="1"] .n-30 { --state: var(--blue); --state-tint: var(--blue-tint); }
+    [data-step-current="1"] .n-4050 { --state: var(--sage); --state-tint: var(--sage-tint); }
+    [data-step-current="1"] .n-6070 { --state: var(--mustard); --state-tint: var(--mustard-tint); }
+    [data-step-current="2"] .n-1020,
+    [data-step-current="2"] .n-30,
+    [data-step-current="2"] .n-6070,
+    [data-step-current="3"] .n-1020,
+    [data-step-current="3"] .n-30,
+    [data-step-current="3"] .n-6070 { --state: var(--mustard); --state-tint: var(--mustard-tint); }
+    [data-step-current="2"] .n-4050 { --state: var(--coral); --state-tint: var(--coral-tint); }
 
-    /* One complete state snapshot per step, cross-faded over a shared root. */
-    [data-snapshot] { display: none; transform: none; pointer-events: none; }
-    [data-snapshot][data-step="3"] { display: block; } /* no-JS / static: final frame */
-    .motion-ready [data-snapshot] { display: none; opacity: 1; transform: none; }
-    .motion-ready [data-snapshot].is-current {
-      display: block;
-      animation: snapshot-in var(--motion-step) var(--motion-ease);
-    }
-    @keyframes snapshot-in { from { opacity: 0; } to { opacity: 1; } }
+    /* step 1: A+B running */
+    [data-step-current="1"] .n-1020 .ref-2,
+    [data-step-current="1"] .n-30 .ref-2,
+    [data-step-current="1"] .n-4050 .ref-1,
+    [data-step-current="1"] .n-6070 .ref-1 { opacity: 1; }
+    [data-step-current="1"] .n-1020 .chip-a,
+    [data-step-current="1"] .n-1020 .chip-b,
+    [data-step-current="1"] .n-30 .chip-a,
+    [data-step-current="1"] .n-30 .chip-b,
+    [data-step-current="1"] .n-4050 .chip-a,
+    [data-step-current="1"] .n-6070 .chip-b { opacity: 1; }
+    [data-step-current="1"] .hold-label { opacity: 1; }
 
-    [data-motion-controls] {
-      display: none;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 0 0 16px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--color-rule);
-    }
+    /* step 2: A ended, [40,50] evictable */
+    [data-step-current="2"] .n-1020 .ref-1,
+    [data-step-current="2"] .n-30 .ref-1,
+    [data-step-current="2"] .n-6070 .ref-1,
+    [data-step-current="2"] .n-4050 .ref-0 { opacity: 1; }
+    [data-step-current="2"] .n-1020 .chip-b,
+    [data-step-current="2"] .n-30 .chip-b,
+    [data-step-current="2"] .n-6070 .chip-b { opacity: 1; }
+    [data-step-current="2"] .n-1020 .hold-label,
+    [data-step-current="2"] .n-30 .hold-label,
+    [data-step-current="2"] .n-6070 .hold-label { opacity: 1; }
+    [data-step-current="2"] .n-4050 .no-holder { opacity: 1; }
+    [data-step-current="2"] .n-4050 .box { stroke-dasharray: 5,4; }
+
+    /* step 3: leaf evicted */
+    [data-step-current="3"] .n-1020 .ref-1,
+    [data-step-current="3"] .n-30 .ref-1,
+    [data-step-current="3"] .n-6070 .ref-1 { opacity: 1; }
+    [data-step-current="3"] .n-1020 .chip-b,
+    [data-step-current="3"] .n-30 .chip-b,
+    [data-step-current="3"] .n-6070 .chip-b { opacity: 1; }
+    [data-step-current="3"] .n-1020 .hold-label,
+    [data-step-current="3"] .n-30 .hold-label,
+    [data-step-current="3"] .n-6070 .hold-label { opacity: 1; }
+    [data-step-current="3"] .n-4050 { opacity: 0; transition: opacity .3s; }
+    [data-step-current="3"] .edge-4050 { opacity: 0; }
+    [data-step-current="3"] .ghost { opacity: 1; }
+
+    .caption { margin: 18px 0 0; padding: 16px 18px 18px; min-height: 140px; background: #fff; border: 1px solid var(--rule); border-left: 3px solid var(--blue); border-radius: 8px; }
+    .caption-panel { display: none; }
+    .caption-panel[data-step="3"] { display: block; }
+    .motion-ready .caption-panel { display: none; }
+    .motion-ready .caption-panel.is-current { display: block; animation: caption-in .24s var(--ease); }
+    .caption-idle { display: none; }
+    [data-step-current="0"] .caption-idle { display: block; }
+    @keyframes caption-in { from { opacity: .2; } to { opacity: 1; } }
+    .caption h3 { margin: 0 0 6px; font: 600 16px/1.4 var(--font-sans); }
+    .caption p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .note { margin: 14px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .note code { color: var(--ink); font-family: var(--font-mono); font-size: 11px; }
+
+    [data-motion-controls] { display: none; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
     .motion-ready [data-motion-controls] { display: flex; }
     [data-motion-controls][hidden] { display: none !important; }
-    [data-motion-controls] button {
-      min-width: 44px;
-      min-height: 44px;
-      padding: 8px 12px;
-      border: 1px solid var(--color-muted);
-      border-radius: 4px;
-      color: var(--color-ink);
-      background: var(--color-paper);
-      font: 600 12px/1 var(--font-sans);
-      cursor: pointer;
-    }
-    [data-motion-controls] button:hover { border-color: var(--color-accent); }
-    [data-motion-controls] button:focus-visible {
-      outline: 3px solid var(--color-accent);
-      outline-offset: 2px;
-    }
+    [data-motion-controls] button { min-width: 44px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--muted); border-radius: 4px; color: var(--ink); background: var(--paper); font: 600 12px/1 var(--font-sans); cursor: pointer; }
+    [data-motion-controls] button:hover { border-color: var(--coral); }
+    [data-motion-controls] button:focus-visible { outline: 3px solid var(--coral); outline-offset: 2px; }
     [data-motion-controls] button:disabled { cursor: not-allowed; opacity: .45; }
-    [data-motion-status-visible] {
-      margin-left: auto;
-      color: var(--color-muted);
-      font: 500 12px/1.4 var(--font-mono);
-    }
-    .keyboard-help { color: var(--color-soft); font: 400 11px/1.4 var(--font-mono); }
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0,0,0,0);
-      white-space: nowrap;
-      border: 0;
-    }
-    noscript p {
-      margin: 12px 0 0;
-      color: var(--color-muted);
-      font: 500 12px/1.4 var(--font-mono);
-    }
-
-    html[data-motion="static"] [data-motion-controls],
-    html[data-motion="static"] [data-motion-decorative] { display: none !important; }
-    html[data-motion="static"] [data-motion-item] {
-      opacity: 1 !important;
-      transform: none !important;
-      animation: none !important;
-      transition: none !important;
-    }
-    html[data-motion="step"] [data-motion-controls],
-    html[data-motion="step"] [data-motion-decorative] { display: none !important; }
-    html[data-motion="step"] [data-motion-item] {
-      animation: none !important;
-      transition: none !important;
-    }
+    [data-motion-status-visible] { margin-left: auto; color: var(--muted); font: 500 12px/1.4 var(--font-mono); }
+    .keyboard-help { color: var(--soft); font: 400 11px/1.4 var(--font-mono); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    noscript p { margin: 12px 0 0; color: var(--muted); font: 500 12px/1.4 var(--font-mono); }
+    html[data-motion="static"] [data-motion-controls], html[data-motion="static"] [data-motion-decorative] { display: none !important; }
+    html[data-motion="static"] .caption-panel { display: none !important; }
+    html[data-motion="static"] .caption-panel[data-step="3"] { display: block !important; }
+    html[data-motion="step"] [data-motion-controls], html[data-motion="step"] [data-motion-decorative] { display: none !important; }
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: .001ms !important;
-        animation-iteration-count: 1 !important;
-        scroll-behavior: auto !important;
-        transition-duration: .001ms !important;
-      }
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .001ms !important; }
       [data-motion-item] { opacity: 1 !important; transform: none !important; }
       [data-motion-decorative] { display: none !important; }
       [data-motion-controls] { display: none !important; }
     }
     @media print {
       [data-motion-controls], [data-motion-decorative] { display: none !important; }
-      [data-motion-item] {
-        opacity: 1 !important;
-        transform: none !important;
-        animation: none !important;
-        transition: none !important;
-      }
+      .caption-panel { display: none !important; }
+      .caption-panel[data-step="3"] { display: block !important; }
     }
-    @media (max-width: 760px) {
-      body { padding: 32px 20px 48px; }
-      h1 { font-size: 28px; }
-    }
-  </style>
+    @media (max-width: 760px) { body { padding: 32px 20px 48px; } h1 { font-size: 28px; } .requests { grid-template-columns: 1fr; } }
+</style>
 </head>
 <body>
   <main data-motion-root data-motion-mode="reveal" data-step-count="3" data-step-current="3" data-frame="static" data-static-frame="complete">
     <nav class="back-nav"><a href="../../">← 返回 SGLang 架构图集</a></nav>
     <p class="eyebrow">RADIXATTENTION / LOCK_REF</p>
     <h1>Radix Tree 的 lock_ref 状态</h1>
-    <p class="subtitle">A、B 各自锁定自己使用的完整缓存路径。节点颜色表示当前持有者集合，节点右上角的 <code>ref</code> 就是 <code>lock_ref</code> 计数：仍有多少个运行中的请求持有这个节点。</p>
+    <p class="subtitle">同一棵树上观察引用计数：节点颜色表示当前持有者集合，节点右上角的 ref 就是 lock_ref。A 结束和叶子被驱逐都在原位发生，不切换整张图。</p>
+
+    <div class="requests">
+      <div class="req req-a">
+        <div class="req-line"><span class="dot"></span><span class="wait">A · 等待</span><span class="run">A · 运行中</span><span class="end">A · 已结束</span></div>
+        <div class="req-sub"><span class="wait">尚未持有节点</span><span class="run">锁定 3 个节点</span><span class="end">释放 3 个节点</span></div>
+      </div>
+      <div class="req req-b">
+        <div class="req-line"><span class="dot"></span><span class="wait">B · 等待</span><span class="run">B · 运行中</span></div>
+        <div class="req-sub"><span class="wait">尚未持有节点</span><span class="run">锁定 3 个节点</span></div>
+      </div>
+    </div>
 
     <ol class="rail" aria-hidden="true">
       <li><span class="n">01</span><span class="t">A、B 运行中</span></li>
@@ -253,227 +253,118 @@
     <p class="sr-only" data-motion-status role="status" aria-live="polite" aria-atomic="true"></p>
 
     <div class="figure">
-      <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="lockref-title lockref-desc">
-        <title id="lockref-title">Radix Tree 的 lock_ref 状态</title>
-        <desc id="lockref-desc">三帧对比：A、B 同时运行时，共享节点 [10,20] 与 [30] 的 lock_ref 为 2，A 独占的 [40,50] 和 B 独占的 [60,70] 为 1；A 结束后，[40,50] 归零成为驱逐候选，而 [10,20] 与 [30] 仍被 B 持有；[40,50] 被真正驱逐后，树中只保留 B 的完整路径 Root → [10,20] → [30] → [60,70]。</desc>
-        <rect width="1200" height="800" fill="#f5f5f5"/>
+<svg viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="lr-title lr-desc">
+  <title id="lr-title">Radix Tree 的 lock_ref 状态</title>
+  <desc id="lr-desc">同一棵树上观察 lock_ref：A、B 同时运行时共享节点为 2、各自叶子为 1；A 结束后 [40,50] 归零成为驱逐候选，[10,20] 与 [30] 仍被 B 持有；[40,50] 被驱逐后只保留 B 的路径。</desc>
+  <rect width="1200" height="700" fill="#f6f7f9"/>
 
-        <!-- Request-state panel shell, contents change per frame. -->
-        <rect x="60" y="24" width="1080" height="100" rx="8" fill="#ffffff" stroke="rgba(45,49,66,0.12)"/>
+  <g class="edges">
+    <path class="edge" d="M600 200 V250"/>
+    <path class="edge" d="M600 350 V400"/>
+    <path class="edge" d="M600 490 V520 M380 520 H820 M380 520 V550"/>
+    <path class="edge edge-4050" d="M820 520 V550"/>
+  </g>
 
-        <!-- Root is shared by every request and is not counted in lock_ref. -->
-        <rect x="520" y="140" width="160" height="56" rx="8" fill="rgba(45,49,66,0.05)" stroke="#4f5d75"/>
-        <text x="600" y="174" text-anchor="middle" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="16" font-weight="600">Root</text>
-        <text x="696" y="172" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">root 不参与 lock_ref</text>
+  <g class="node root">
+    <rect class="box" x="500" y="120" width="200" height="80" rx="22"/>
+    <text class="tok root-tok" x="600" y="175" text-anchor="middle">Root</text>
+  </g>
 
-        <!-- Step 1 · A and B both running -->
-        <g data-snapshot data-motion-item data-step="1" aria-label="步骤 1 A 与 B 都在运行：共享节点 lock_ref 为 2，各自独占的叶子为 1。">
-          <text x="88" y="52" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="10" letter-spacing="0.16em">REQUEST LOCK STATE</text>
-          <text x="88" y="78" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="16" font-weight="600">A 与 B 各自锁定完整路径</text>
-          <text x="88" y="100" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">lock_ref = 仍持有该节点的运行中请求数</text>
+  
+    <g class="node n-1020">
+      <rect class="box" x="400" y="250" width="400" height="100" rx="22"/>
+      <text class="tok" x="600.0" y="310.0" text-anchor="middle" font-size="28">[10,20]</text>
+      <g class="badge">
+        <rect class="badge-box" x="732" y="260" width="56" height="24" rx="5"/>
+        <text class="ref ref-2" x="760" y="277" text-anchor="middle">ref 2</text>
+        <text class="ref ref-1" x="760" y="277" text-anchor="middle">ref 1</text>
+        <text class="ref ref-0" x="760" y="277" text-anchor="middle">ref 0</text>
+      </g>
+      <g class="holders">
+        <text class="hold-label" x="416" y="332">持有</text>
+        <g class="chip chip-a"><rect x="458" y="316" width="24" height="18" rx="3"/><text x="470" y="329" text-anchor="middle">A</text></g>
+        <g class="chip chip-b"><rect x="490" y="316" width="24" height="18" rx="3"/><text x="502" y="329" text-anchor="middle">B</text></g>
+      </g>
+      
+    </g>
+    <g class="node n-30">
+      <rect class="box" x="450" y="400" width="300" height="90" rx="22"/>
+      <text class="tok" x="600.0" y="455.0" text-anchor="middle" font-size="28">[30]</text>
+      <g class="badge">
+        <rect class="badge-box" x="682" y="410" width="56" height="24" rx="5"/>
+        <text class="ref ref-2" x="710" y="427" text-anchor="middle">ref 2</text>
+        <text class="ref ref-1" x="710" y="427" text-anchor="middle">ref 1</text>
+        <text class="ref ref-0" x="710" y="427" text-anchor="middle">ref 0</text>
+      </g>
+      <g class="holders">
+        <text class="hold-label" x="466" y="472">持有</text>
+        <g class="chip chip-a"><rect x="508" y="456" width="24" height="18" rx="3"/><text x="520" y="469" text-anchor="middle">A</text></g>
+        <g class="chip chip-b"><rect x="540" y="456" width="24" height="18" rx="3"/><text x="552" y="469" text-anchor="middle">B</text></g>
+      </g>
+      
+    </g>
+    <g class="node n-4050">
+      <rect class="box" x="230" y="550" width="300" height="100" rx="22"/>
+      <text class="tok" x="380.0" y="610.0" text-anchor="middle" font-size="28">[40,50]</text>
+      <g class="badge">
+        <rect class="badge-box" x="462" y="560" width="56" height="24" rx="5"/>
+        <text class="ref ref-2" x="490" y="577" text-anchor="middle">ref 2</text>
+        <text class="ref ref-1" x="490" y="577" text-anchor="middle">ref 1</text>
+        <text class="ref ref-0" x="490" y="577" text-anchor="middle">ref 0</text>
+      </g>
+      <g class="holders">
+        <text class="hold-label" x="246" y="632">持有</text>
+        <g class="chip chip-a"><rect x="288" y="616" width="24" height="18" rx="3"/><text x="300" y="629" text-anchor="middle">A</text></g>
+        <g class="chip chip-b"><rect x="320" y="616" width="24" height="18" rx="3"/><text x="332" y="629" text-anchor="middle">B</text></g>
+      </g>
+      <text class="no-holder" x="246" y="632">无持有者 · 可驱逐</text>
+    </g>
+    <g class="node n-6070">
+      <rect class="box" x="670" y="550" width="300" height="100" rx="22"/>
+      <text class="tok" x="820.0" y="610.0" text-anchor="middle" font-size="28">[60,70]</text>
+      <g class="badge">
+        <rect class="badge-box" x="902" y="560" width="56" height="24" rx="5"/>
+        <text class="ref ref-2" x="930" y="577" text-anchor="middle">ref 2</text>
+        <text class="ref ref-1" x="930" y="577" text-anchor="middle">ref 1</text>
+        <text class="ref ref-0" x="930" y="577" text-anchor="middle">ref 0</text>
+      </g>
+      <g class="holders">
+        <text class="hold-label" x="686" y="632">持有</text>
+        <g class="chip chip-a"><rect x="728" y="616" width="24" height="18" rx="3"/><text x="740" y="629" text-anchor="middle">A</text></g>
+        <g class="chip chip-b"><rect x="760" y="616" width="24" height="18" rx="3"/><text x="772" y="629" text-anchor="middle">B</text></g>
+      </g>
+      
+    </g>
+  
+    <g class="ghost">
+      <rect class="ghost-box" x="230" y="550" width="300" height="100" rx="22"/>
+      <text class="ghost-tok" x="380" y="600" text-anchor="middle">[40,50]</text>
+      <rect class="ghost-badge" x="462" y="560" width="56" height="24" rx="5"/>
+      <text class="ghost-ref" x="490" y="577" text-anchor="middle">ref —</text>
+      <text class="ghost-note" x="246" y="632">已驱逐 · KV 已释放</text>
+    </g>
+</svg>
+</div>
 
-          <rect x="680" y="44" width="210" height="60" rx="8" fill="rgba(79,107,67,0.10)" stroke="#4f6b43"/>
-          <circle cx="700" cy="66" r="4" fill="#4f6b43"/>
-          <text x="712" y="70" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">A · 运行中</text>
-          <text x="700" y="90" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">锁定 3 个节点</text>
+    <section class="caption" aria-live="polite">
+      <div class="caption-panel caption-idle"><h3>准备开始</h3><p>点击播放或“下一步”，观察 lock_ref 如何在同一棵树上变化。</p></div>
+      <div class="caption-panel" data-motion-item data-step="1" aria-label="步骤 1 A 与 B 都在运行">
+        <h3>A、B 都持有完整路径</h3>
+        <p>共享节点被持有两次，ref = 2；各自独占的叶子 ref = 1。</p>
+      </div>
+      <div class="caption-panel" data-motion-item data-step="2" aria-label="步骤 2 A 结束后">
+        <h3>A 结束后</h3>
+        <p>[40,50] 的 ref 归零，成为驱逐候选；[10,20] → [30] 仍被 B 持有，不能淘汰。</p>
+      </div>
+      <div class="caption-panel" data-motion-item data-step="3" aria-label="步骤 3 驱逐 A 的叶子后">
+        <h3>驱逐 A 的叶子后</h3>
+        <p>[40,50] 被移除，B 的路径完整保留；[30] 仍不是叶子，因此继续驻留。</p>
+      </div>
+    </section>
 
-          <rect x="908" y="44" width="210" height="60" rx="8" fill="rgba(138,95,30,0.10)" stroke="#8a5f1e"/>
-          <circle cx="928" cy="66" r="4" fill="#8a5f1e"/>
-          <text x="940" y="70" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">B · 运行中</text>
-          <text x="928" y="90" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">锁定 3 个节点</text>
-
-          <!-- shared path -->
-          <path d="M600 196 V240" fill="none" stroke="#2e5aa8" stroke-width="1.4"/>
-          <path d="M600 328 V380" fill="none" stroke="#2e5aa8" stroke-width="1.4"/>
-          <path d="M600 468 V505 M460 505 H740" fill="none" stroke="#2e5aa8" stroke-width="1.4"/>
-          <path d="M460 505 V530" fill="none" stroke="#4f6b43" stroke-width="1.4"/>
-          <path d="M740 505 V530" fill="none" stroke="#8a5f1e" stroke-width="1.4"/>
-
-          <!-- [10,20] shared, ref 2 -->
-          <rect x="450" y="240" width="300" height="88" rx="8" fill="rgba(46,90,168,0.08)" stroke="#2e5aa8" stroke-width="1.4"/>
-          <text x="600" y="274" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">[10,20]</text>
-          <rect x="690" y="252" width="48" height="22" rx="4" fill="#f5f5f5" stroke="#2e5aa8"/>
-          <text x="714" y="267" text-anchor="middle" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">ref 2</text>
-          <text x="466" y="304" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">持有</text>
-          <rect x="506" y="291" width="24" height="18" rx="3" fill="rgba(79,107,67,0.12)" stroke="#4f6b43" stroke-width="0.9"/>
-          <text x="518" y="304" text-anchor="middle" fill="#4f6b43" font-family="'Geist Mono', monospace" font-size="10">A</text>
-          <rect x="538" y="291" width="24" height="18" rx="3" fill="rgba(138,95,30,0.12)" stroke="#8a5f1e" stroke-width="0.9"/>
-          <text x="550" y="304" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="10">B</text>
-
-          <!-- [30] shared, ref 2 -->
-          <rect x="480" y="380" width="240" height="88" rx="8" fill="rgba(46,90,168,0.08)" stroke="#2e5aa8" stroke-width="1.4"/>
-          <text x="600" y="414" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">[30]</text>
-          <rect x="660" y="392" width="48" height="22" rx="4" fill="#f5f5f5" stroke="#2e5aa8"/>
-          <text x="684" y="407" text-anchor="middle" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">ref 2</text>
-          <text x="496" y="444" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">持有</text>
-          <rect x="536" y="431" width="24" height="18" rx="3" fill="rgba(79,107,67,0.12)" stroke="#4f6b43" stroke-width="0.9"/>
-          <text x="548" y="444" text-anchor="middle" fill="#4f6b43" font-family="'Geist Mono', monospace" font-size="10">A</text>
-          <rect x="568" y="431" width="24" height="18" rx="3" fill="rgba(138,95,30,0.12)" stroke="#8a5f1e" stroke-width="0.9"/>
-          <text x="580" y="444" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="10">B</text>
-
-          <!-- [40,50] A-only, ref 1 -->
-          <rect x="330" y="530" width="260" height="96" rx="8" fill="rgba(79,107,67,0.10)" stroke="#4f6b43" stroke-width="1.4"/>
-          <text x="460" y="564" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">[40,50]</text>
-          <rect x="530" y="542" width="48" height="22" rx="4" fill="#f5f5f5" stroke="#4f6b43"/>
-          <text x="554" y="557" text-anchor="middle" fill="#4f6b43" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">ref 1</text>
-          <text x="346" y="600" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">持有</text>
-          <rect x="386" y="587" width="24" height="18" rx="3" fill="rgba(79,107,67,0.12)" stroke="#4f6b43" stroke-width="0.9"/>
-          <text x="398" y="600" text-anchor="middle" fill="#4f6b43" font-family="'Geist Mono', monospace" font-size="10">A</text>
-
-          <!-- [60,70] B-only, ref 1 -->
-          <rect x="610" y="530" width="260" height="96" rx="8" fill="rgba(138,95,30,0.10)" stroke="#8a5f1e" stroke-width="1.4"/>
-          <text x="740" y="564" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">[60,70]</text>
-          <rect x="810" y="542" width="48" height="22" rx="4" fill="#f5f5f5" stroke="#8a5f1e"/>
-          <text x="834" y="557" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">ref 1</text>
-          <text x="626" y="600" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">持有</text>
-          <rect x="666" y="587" width="24" height="18" rx="3" fill="rgba(138,95,30,0.12)" stroke="#8a5f1e" stroke-width="0.9"/>
-          <text x="678" y="600" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="10">B</text>
-
-          <line x1="60" y1="670" x2="60" y2="700" stroke="#eb6c36" stroke-width="2"/>
-          <text x="76" y="690" fill="#4f5d75" font-family="'Instrument Serif', 'Noto Serif SC', serif" font-size="16"><tspan font-family="'Geist Mono', monospace" font-size="13" fill="#eb6c36">01</tspan>　A、B 同时运行：共享节点被持有两次，各自的独占叶子被持有一次。</text>
-        </g>
-
-        <!-- Step 2 · A finished -->
-        <g data-snapshot data-motion-item data-step="2" aria-label="步骤 2 A 结束后：A 的独占叶子 40、50 的 lock_ref 归零成为驱逐候选，共享路径仍被 B 持有。">
-          <text x="88" y="52" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="10" letter-spacing="0.16em">REQUEST LOCK STATE</text>
-          <text x="88" y="78" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="16" font-weight="600">A 结束后：共享路径仍被 B 持有</text>
-          <text x="88" y="100" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">lock_ref = 仍持有该节点的运行中请求数</text>
-
-          <rect x="680" y="44" width="210" height="60" rx="8" fill="#f5f5f5" stroke="#7a8399" stroke-dasharray="4,3"/>
-          <circle cx="700" cy="66" r="4" fill="none" stroke="#7a8399" stroke-width="1.4"/>
-          <text x="712" y="70" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">A · 已结束</text>
-          <text x="700" y="90" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">释放 3 个节点</text>
-
-          <rect x="908" y="44" width="210" height="60" rx="8" fill="rgba(138,95,30,0.10)" stroke="#8a5f1e"/>
-          <circle cx="928" cy="66" r="4" fill="#8a5f1e"/>
-          <text x="940" y="70" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">B · 运行中</text>
-          <text x="928" y="90" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">锁定 3 个节点</text>
-
-          <!-- remaining B path -->
-          <path d="M600 196 V240" fill="none" stroke="#8a5f1e" stroke-width="1.4"/>
-          <path d="M600 328 V380" fill="none" stroke="#8a5f1e" stroke-width="1.4"/>
-          <path d="M600 468 V505 M460 505 H740" fill="none" stroke="#8a5f1e" stroke-width="1.4"/>
-          <path d="M460 505 V530" fill="none" stroke="#b04a1e" stroke-width="1.4" stroke-dasharray="5,4"/>
-          <path d="M740 505 V530" fill="none" stroke="#8a5f1e" stroke-width="1.4"/>
-
-          <!-- [10,20] now B-only, ref 1 -->
-          <rect x="450" y="240" width="300" height="88" rx="8" fill="rgba(138,95,30,0.10)" stroke="#8a5f1e" stroke-width="1.4"/>
-          <text x="600" y="274" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">[10,20]</text>
-          <rect x="690" y="252" width="48" height="22" rx="4" fill="#f5f5f5" stroke="#8a5f1e"/>
-          <text x="714" y="267" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">ref 1</text>
-          <text x="466" y="304" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">持有</text>
-          <rect x="506" y="291" width="24" height="18" rx="3" fill="rgba(138,95,30,0.12)" stroke="#8a5f1e" stroke-width="0.9"/>
-          <text x="518" y="304" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="10">B</text>
-
-          <!-- [30] now B-only, ref 1 -->
-          <rect x="480" y="380" width="240" height="88" rx="8" fill="rgba(138,95,30,0.10)" stroke="#8a5f1e" stroke-width="1.4"/>
-          <text x="600" y="414" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">[30]</text>
-          <rect x="660" y="392" width="48" height="22" rx="4" fill="#f5f5f5" stroke="#8a5f1e"/>
-          <text x="684" y="407" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">ref 1</text>
-          <text x="496" y="444" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">持有</text>
-          <rect x="536" y="431" width="24" height="18" rx="3" fill="rgba(138,95,30,0.12)" stroke="#8a5f1e" stroke-width="0.9"/>
-          <text x="548" y="444" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="10">B</text>
-
-          <!-- [40,50] ref 0, eviction candidate -->
-          <rect x="330" y="530" width="260" height="96" rx="8" fill="rgba(176,74,30,0.07)" stroke="#b04a1e" stroke-width="1.4" stroke-dasharray="5,4"/>
-          <text x="460" y="564" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">[40,50]</text>
-          <rect x="530" y="542" width="48" height="22" rx="4" fill="#f5f5f5" stroke="#b04a1e"/>
-          <text x="554" y="557" text-anchor="middle" fill="#b04a1e" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">ref 0</text>
-          <text x="346" y="600" fill="#b04a1e" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11" font-weight="600">无持有者 · 可驱逐</text>
-
-          <!-- [60,70] B-only, ref 1 -->
-          <rect x="610" y="530" width="260" height="96" rx="8" fill="rgba(138,95,30,0.10)" stroke="#8a5f1e" stroke-width="1.4"/>
-          <text x="740" y="564" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">[60,70]</text>
-          <rect x="810" y="542" width="48" height="22" rx="4" fill="#f5f5f5" stroke="#8a5f1e"/>
-          <text x="834" y="557" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">ref 1</text>
-          <text x="626" y="600" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">持有</text>
-          <rect x="666" y="587" width="24" height="18" rx="3" fill="rgba(138,95,30,0.12)" stroke="#8a5f1e" stroke-width="0.9"/>
-          <text x="678" y="600" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="10">B</text>
-
-          <line x1="60" y1="670" x2="60" y2="700" stroke="#eb6c36" stroke-width="2"/>
-          <text x="76" y="690" fill="#4f5d75" font-family="'Instrument Serif', 'Noto Serif SC', serif" font-size="16"><tspan font-family="'Geist Mono', monospace" font-size="13" fill="#eb6c36">02</tspan>　A 释放后 [40,50] 归零，成为驱逐候选；[10,20]→[30] 仍被 B 锁定，不能淘汰。</text>
-        </g>
-
-        <!-- Step 3 · A's leaf evicted -->
-        <g data-snapshot data-motion-item data-step="3" aria-label="步骤 3 驱逐 A 的叶子后：40、50 节点从树中移除，KV 已释放，只保留 B 的路径 Root 到 10、20 到 30 到 60、70。">
-          <text x="88" y="52" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="10" letter-spacing="0.16em">REQUEST LOCK STATE</text>
-          <text x="88" y="78" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="16" font-weight="600">A 的叶子 [40,50] 已被驱逐</text>
-          <text x="88" y="100" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">叶子被移除，KV 槽位回到空闲池；B 的路径不变</text>
-
-          <rect x="680" y="44" width="210" height="60" rx="8" fill="#f5f5f5" stroke="#7a8399" stroke-dasharray="4,3"/>
-          <circle cx="700" cy="66" r="4" fill="none" stroke="#7a8399" stroke-width="1.4"/>
-          <text x="712" y="70" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">A · 已结束</text>
-          <text x="700" y="90" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">释放 3 个节点</text>
-
-          <rect x="908" y="44" width="210" height="60" rx="8" fill="rgba(138,95,30,0.10)" stroke="#8a5f1e"/>
-          <circle cx="928" cy="66" r="4" fill="#8a5f1e"/>
-          <text x="940" y="70" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">B · 运行中</text>
-          <text x="928" y="90" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">锁定 3 个节点</text>
-
-          <!-- Remaining B path -->
-          <path d="M600 196 V240" fill="none" stroke="#8a5f1e" stroke-width="1.4"/>
-          <path d="M600 328 V380" fill="none" stroke="#8a5f1e" stroke-width="1.4"/>
-          <path d="M600 468 V505 H740 V530" fill="none" stroke="#8a5f1e" stroke-width="1.4"/>
-
-          <!-- [10,20] B-only, ref 1 -->
-          <rect x="450" y="240" width="300" height="88" rx="8" fill="rgba(138,95,30,0.10)" stroke="#8a5f1e" stroke-width="1.4"/>
-          <text x="600" y="274" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">[10,20]</text>
-          <rect x="690" y="252" width="48" height="22" rx="4" fill="#f5f5f5" stroke="#8a5f1e"/>
-          <text x="714" y="267" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">ref 1</text>
-          <text x="466" y="304" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">持有</text>
-          <rect x="506" y="291" width="24" height="18" rx="3" fill="rgba(138,95,30,0.12)" stroke="#8a5f1e" stroke-width="0.9"/>
-          <text x="518" y="304" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="10">B</text>
-
-          <!-- [30] B-only, ref 1 -->
-          <rect x="480" y="380" width="240" height="88" rx="8" fill="rgba(138,95,30,0.10)" stroke="#8a5f1e" stroke-width="1.4"/>
-          <text x="600" y="414" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">[30]</text>
-          <rect x="660" y="392" width="48" height="22" rx="4" fill="#f5f5f5" stroke="#8a5f1e"/>
-          <text x="684" y="407" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">ref 1</text>
-          <text x="496" y="444" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">持有</text>
-          <rect x="536" y="431" width="24" height="18" rx="3" fill="rgba(138,95,30,0.12)" stroke="#8a5f1e" stroke-width="0.9"/>
-          <text x="548" y="444" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="10">B</text>
-
-          <!-- Evicted leaf placeholder: no edge, no lock_ref -->
-          <rect x="330" y="530" width="260" height="96" rx="8" fill="none" stroke="#bfc0c0" stroke-width="1" stroke-dasharray="4,4"/>
-          <text x="460" y="564" text-anchor="middle" fill="#a9adb8" font-family="'Geist Mono', monospace" font-size="20" text-decoration="line-through">[40,50]</text>
-          <rect x="530" y="542" width="48" height="22" rx="4" fill="none" stroke="#bfc0c0" stroke-dasharray="3,2"/>
-          <text x="554" y="557" text-anchor="middle" fill="#a9adb8" font-family="'Geist Mono', monospace" font-size="11">ref —</text>
-          <text x="460" y="600" text-anchor="middle" fill="#b04a1e" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11" font-weight="600">已驱逐 · KV 已释放</text>
-
-          <!-- [60,70] B-only, ref 1 -->
-          <rect x="610" y="530" width="260" height="96" rx="8" fill="rgba(138,95,30,0.10)" stroke="#8a5f1e" stroke-width="1.4"/>
-          <text x="740" y="564" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">[60,70]</text>
-          <rect x="810" y="542" width="48" height="22" rx="4" fill="#f5f5f5" stroke="#8a5f1e"/>
-          <text x="834" y="557" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">ref 1</text>
-          <text x="626" y="600" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">持有</text>
-          <rect x="666" y="587" width="24" height="18" rx="3" fill="rgba(138,95,30,0.12)" stroke="#8a5f1e" stroke-width="0.9"/>
-          <text x="678" y="600" text-anchor="middle" fill="#8a5f1e" font-family="'Geist Mono', monospace" font-size="10">B</text>
-
-          <line x1="60" y1="670" x2="60" y2="700" stroke="#eb6c36" stroke-width="2"/>
-          <text x="76" y="690" fill="#4f5d75" font-family="'Instrument Serif', 'Noto Serif SC', serif" font-size="16"><tspan font-family="'Geist Mono', monospace" font-size="13" fill="#eb6c36">03</tspan>　[40,50] 被驱逐后，B 的路径完整保留；[30] 仍不是叶子，因此继续驻留。</text>
-        </g>
-
-        <!-- Legend strip, outside the tree area. -->
-        <line x1="60" y1="730" x2="1140" y2="730" stroke="rgba(45,49,66,0.12)" stroke-width="0.8"/>
-        <text x="60" y="758" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="10" letter-spacing="0.14em">LEGEND</text>
-        <rect x="140" y="746" width="16" height="12" rx="2" fill="rgba(46,90,168,0.08)" stroke="#2e5aa8"/>
-        <text x="164" y="758" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12">A + B 共享 · ref 2</text>
-        <rect x="330" y="746" width="16" height="12" rx="2" fill="rgba(79,107,67,0.10)" stroke="#4f6b43"/>
-        <text x="354" y="758" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12">仅 A 持有 · ref 1</text>
-        <rect x="505" y="746" width="16" height="12" rx="2" fill="rgba(138,95,30,0.10)" stroke="#8a5f1e"/>
-        <text x="529" y="758" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12">仅 B 持有 · ref 1</text>
-        <rect x="680" y="746" width="16" height="12" rx="2" fill="rgba(176,74,30,0.07)" stroke="#b04a1e" stroke-dasharray="3,2"/>
-        <text x="704" y="758" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12">无持有者 · ref 0 · 可驱逐</text>
-        <rect x="900" y="746" width="16" height="12" rx="2" fill="none" stroke="#bfc0c0" stroke-dasharray="3,2"/>
-        <text x="924" y="758" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12">已驱逐 · KV 已释放</text>
-      </svg>
-    </div>
-
-    <p class="note">示例：<code>A = [10,20,30,40,50]</code> · <code>B = [10,20,30,60,70]</code>。Root 不参与 lock_ref。<code>lock_ref = 0</code> 只表示节点进入 LRU 驱逐候选；真正淘汰仍从叶子开始。第 3 帧里 <code>[40,50]</code> 被驱逐后，<code>[30]</code> 仍有一个子节点 <code>[60,70]</code>，所以不会被连带淘汰。</p>
-
+    <p class="note">节点颜色 = 当前持有者集合，数字 = lock_ref。Root 不参与 lock_ref；<code>ref = 0</code> 只表示进入 LRU 候选，真正删除仍由显存压力触发。</p>
     <noscript><p>动画控制需要 JavaScript；上方显示的是完整的最终状态。</p></noscript>
   </main>
-
   <script data-diagram-controls>
     (() => {
       const params = new URLSearchParams(location.search);

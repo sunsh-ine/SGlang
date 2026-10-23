@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Radix Tree 的 Prefix Match 过程</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Serif+SC:wght@400;600&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --paper: #f6f7f9;
+      --ink: #16181d;
+      --muted: #6b7280;
+      --soft: #9aa1ab;
+      --rule: #e3e6ea;
+      --teal: #0f8b7e;
+      --teal-tint: #e8f4f1;
+      --grey: #5b6577;
+      --grey-fill: #f3f4f6;
+      --line: #8a93a3;
+      --font-sans: 'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+      --font-serif: 'Instrument Serif', 'Noto Serif', 'Noto Serif SC', 'Songti SC', serif;
+      --font-mono: 'Geist Mono', 'DejaVu Sans Mono', ui-monospace, monospace;
+      --motion-fast: 160ms;
+      --motion-step: 480ms;
+      --motion-hold: 1500ms;
+      --motion-total: 6000ms;
+      --ease: cubic-bezier(.2,.8,.2,1);
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 48px 32px 64px;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--font-sans);
+    }
+    [data-motion-root] { width: min(100%, 1200px); margin: 0 auto; }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font: 500 11px/1.4 var(--font-mono);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    .back-nav { margin: 0 0 18px; }
+    .back-nav a {
+      color: var(--muted);
+      font: 500 12px/1.4 var(--font-sans);
+      text-decoration: none;
+    }
+    .back-nav a:hover { color: var(--color-accent, #eb6c36); }
+    h1 { margin: 0 0 12px; font: 400 34px/1.15 var(--font-serif); }
+    .subtitle {
+      margin: 0 0 24px;
+      max-width: 88ch;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+    .rail {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 0 0 20px;
+      padding: 0;
+      list-style: none;
+    }
+    .rail li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      transition: background var(--motion-fast) var(--ease),
+                  border-color var(--motion-fast) var(--ease),
+                  color var(--motion-fast) var(--ease);
+    }
+    .rail .n { font: 500 11px/1 var(--font-mono); letter-spacing: .08em; }
+    .rail .t { font: 600 13px/1 var(--font-sans); }
+    [data-step-current="1"] .rail li:nth-child(1),
+    [data-step-current="2"] .rail li:nth-child(2),
+    [data-step-current="3"] .rail li:nth-child(3),
+    [data-step-current="4"] .rail li:nth-child(4) {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: #fff;
+    }
+    [data-step-current="1"] .rail li:nth-child(1) .n,
+    [data-step-current="2"] .rail li:nth-child(2) .n,
+    [data-step-current="3"] .rail li:nth-child(3) .n,
+    [data-step-current="4"] .rail li:nth-child(4) .n { color: #4fd1c5; }
+
+    .figure { margin: 0; overflow-x: auto; }
+    svg { display: block; width: 100%; min-width: 960px; height: auto; }
+
+    /* ---- persistent tree styling ---- */
+    .edge {
+      fill: none;
+      stroke: var(--line);
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: stroke .32s var(--ease);
+    }
+    .node .box {
+      fill: var(--grey-fill);
+      stroke: var(--grey);
+      stroke-width: 2;
+      transition: fill .32s var(--ease), stroke .32s var(--ease);
+    }
+    .node .label {
+      fill: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 30px;
+      font-weight: 500;
+      transition: opacity .28s var(--ease);
+    }
+    .root-label { font-family: var(--font-sans) !important; font-weight: 600 !important; }
+    .ring {
+      fill: none;
+      stroke: var(--teal);
+      stroke-width: 4;
+      opacity: 0;
+      transition: opacity .32s var(--ease);
+    }
+    .label-split { opacity: 0; }
+
+    .tok .box {
+      fill: #fff;
+      stroke: #c7ced8;
+      stroke-width: 1.5;
+      transition: fill .3s var(--ease), stroke .3s var(--ease);
+    }
+    .tok .txt {
+      fill: var(--grey);
+      font-family: var(--font-mono);
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .tok .pos { fill: var(--soft); font-family: var(--font-mono); font-size: 9px; }
+    .count { opacity: 0; transition: opacity .28s var(--ease); }
+    .progress-fill {
+      transform-box: fill-box;
+      transform-origin: left center;
+      transform: scaleX(0);
+      transition: transform .4s var(--ease);
+    }
+    .caret { opacity: 0; transition: opacity .25s var(--ease); }
+    .no-insert { opacity: 0; transition: opacity .3s var(--ease); }
+    .split-marker { opacity: 0; transition: opacity .3s var(--ease); }
+
+    .node-40 {
+      opacity: 0;
+      transform: translateY(-6px) scale(.98);
+      transform-box: fill-box;
+      transform-origin: center;
+      transition: opacity .35s var(--ease), transform .35s var(--ease);
+    }
+    .edge-30-40 {
+      stroke-dasharray: 1;
+      stroke-dashoffset: 1;
+      transition: stroke-dashoffset .45s var(--ease) .05s;
+    }
+
+    /* ---- step 1: first branch ---- */
+    [data-step-current="1"] .node-root .box,
+    [data-step-current="1"] .node-10 .box,
+    [data-step-current="2"] .node-10 .box,
+    [data-step-current="3"] .node-10 .box,
+    [data-step-current="4"] .node-10 .box,
+    [data-step-current="3"] .node-30 .box,
+    [data-step-current="4"] .node-30 .box {
+      fill: var(--teal-tint);
+      stroke: var(--teal);
+    }
+    [data-step-current="1"] .edge-root,
+    [data-step-current="2"] .edge-root,
+    [data-step-current="3"] .edge-root,
+    [data-step-current="4"] .edge-root,
+    [data-step-current="3"] .edge-10-30,
+    [data-step-current="4"] .edge-10-30 { stroke: var(--teal); }
+    [data-step-current="1"] .caret-10 { opacity: 1; }
+    [data-step-current="0"] .count-1,
+    [data-step-current="1"] .count-1 { opacity: 1; }
+
+    /* ---- step 2: [10,20] fully matched ---- */
+    [data-step-current="2"] .ring-10 { opacity: 1; }
+    [data-step-current="2"] .count-2 { opacity: 1; }
+    [data-step-current="2"] .progress-fill { transform: scaleX(.4); }
+    [data-step-current="2"] .tok-10 .box,
+    [data-step-current="3"] .tok-10 .box,
+    [data-step-current="4"] .tok-10 .box,
+    [data-step-current="2"] .tok-20 .box,
+    [data-step-current="3"] .tok-20 .box,
+    [data-step-current="4"] .tok-20 .box {
+      fill: var(--teal-tint);
+      stroke: var(--teal);
+    }
+    [data-step-current="2"] .caret-30 { opacity: 1; }
+
+    /* ---- step 3: [30,40,50] partially matched ---- */
+    [data-step-current="3"] .ring-30 { opacity: 1; }
+    [data-step-current="3"] .count-3,
+    [data-step-current="4"] .count-4 { opacity: 1; }
+    [data-step-current="3"] .progress-fill,
+    [data-step-current="4"] .progress-fill { transform: scaleX(.6); }
+    [data-step-current="3"] .tok-30 .box,
+    [data-step-current="4"] .tok-30 .box {
+      fill: var(--teal-tint);
+      stroke: var(--teal);
+    }
+    [data-step-current="3"] .caret-60 { opacity: 1; }
+
+    /* ---- step 4: split in place ---- */
+    [data-step-current="4"] .ring-30 { opacity: 0; }
+    [data-step-current="4"] .label-full { opacity: 0; }
+    [data-step-current="4"] .label-split { opacity: 1; }
+    [data-step-current="4"] .node-40 { opacity: 1; transform: none; }
+    [data-step-current="4"] .edge-30-40 { stroke-dashoffset: 0; }
+    [data-step-current="4"] .split-marker { opacity: 1; }
+    [data-step-current="4"] .no-insert { opacity: 1; }
+
+    /* ---- caption ---- */
+    .caption {
+      margin: 18px 0 0;
+      padding: 16px 18px 18px;
+      min-height: 156px;
+      background: #fff;
+      border: 1px solid var(--rule);
+      border-left: 3px solid var(--teal);
+      border-radius: 8px;
+    }
+    .caption-panel { display: none; }
+    .caption-panel[data-step="4"] { display: block; }
+    .motion-ready .caption-panel { display: none; }
+    .motion-ready .caption-panel.is-current { display: block; animation: caption-in .24s var(--ease); }
+    .caption-idle { display: none; }
+    [data-step-current="0"] .caption-idle { display: block; }
+    @keyframes caption-in { from { opacity: .2; } to { opacity: 1; } }
+    .caption h3 { margin: 0 0 6px; font: 600 16px/1.4 var(--font-sans); }
+    .caption p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .result {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--rule);
+    }
+    .result span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .result em {
+      margin-right: 4px;
+      color: var(--ink);
+      font-style: normal;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .result b {
+      color: var(--teal);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .note {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .note code { color: var(--ink); font-family: var(--font-mono); font-size: 11px; }
+
+    [data-motion-controls] {
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .motion-ready [data-motion-controls] { display: flex; }
+    [data-motion-controls][hidden] { display: none !important; }
+    [data-motion-controls] button {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border: 1px solid var(--muted);
+      border-radius: 4px;
+      color: var(--ink);
+      background: var(--paper);
+      font: 600 12px/1 var(--font-sans);
+      cursor: pointer;
+    }
+    [data-motion-controls] button:hover { border-color: var(--teal); }
+    [data-motion-controls] button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+    [data-motion-controls] button:disabled { cursor: not-allowed; opacity: .45; }
+    [data-motion-status-visible] { margin-left: auto; color: var(--muted); font: 500 12px/1.4 var(--font-mono); }
+    .keyboard-help { color: var(--soft); font: 400 11px/1.4 var(--font-mono); }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+    noscript p { margin: 12px 0 0; color: var(--muted); font: 500 12px/1.4 var(--font-mono); }
+
+    html[data-motion="static"] [data-motion-controls],
+    html[data-motion="static"] [data-motion-decorative] { display: none !important; }
+    html[data-motion="static"] .caption-panel { display: none !important; }
+    html[data-motion="static"] .caption-panel[data-step="4"] { display: block !important; }
+    html[data-motion="step"] [data-motion-controls],
+    html[data-motion="step"] [data-motion-decorative] { display: none !important; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important; transition-duration: .001ms !important;
+      }
+      [data-motion-item] { opacity: 1 !important; transform: none !important; }
+      [data-motion-decorative] { display: none !important; }
+      [data-motion-controls] { display: none !important; }
+    }
+    @media print {
+      [data-motion-controls], [data-motion-decorative] { display: none !important; }
+      .caption-panel { display: none !important; }
+      .caption-panel[data-step="4"] { display: block !important; }
+    }
+    @media (max-width: 760px) {
+      body { padding: 32px 20px 48px; }
+      h1 { font-size: 28px; }
+      .rail { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+</head>
+<body>
+  <main data-motion-root data-motion-mode="reveal" data-step-count="4" data-step-current="4" data-frame="static" data-static-frame="complete">
+    <nav class="back-nav"><a href="../../">← 返回 SGLang 架构图集</a></nav>
+    <p class="eyebrow">RADIX TREE / PREFIX MATCH</p>
+    <h1>Radix Tree 的 Prefix Match 过程</h1>
+    <p class="subtitle">同一个请求在同一棵树上逐步推进：节点高亮、命中长度和 Token 状态都在原位变化，第 4 步只让压缩节点在匹配边界处分裂，不切换整张图。</p>
+
+    <ol class="rail" aria-hidden="true">
+      <li><span class="n">01</span><span class="t">查找第一分支</span></li>
+      <li><span class="n">02</span><span class="t">完全匹配</span></li>
+      <li><span class="n">03</span><span class="t">部分匹配</span></li>
+      <li><span class="n">04</span><span class="t">分裂并返回</span></li>
+    </ol>
+
+    <div data-motion-controls role="group" aria-label="动画播放控制">
+      <button type="button" data-motion-action="prev">上一步</button>
+      <button type="button" data-motion-action="play" aria-pressed="false">播放</button>
+      <button type="button" data-motion-action="pause" aria-pressed="true">暂停</button>
+      <button type="button" data-motion-action="next">下一步</button>
+      <button type="button" data-motion-action="replay">重播</button>
+      <span class="keyboard-help">←/→ 切换 · 空格 播放/暂停 · R 重播 · Home/End 跳转</span>
+      <span data-motion-status-visible aria-hidden="true">第 <span data-motion-step-label>4</span> / 4 步</span>
+    </div>
+    <p class="sr-only" data-motion-status role="status" aria-live="polite" aria-atomic="true"></p>
+
+    <div class="figure">
+      
+<svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="pm-title pm-desc">
+  <title id="pm-title">Radix Tree 的 Prefix Match 过程</title>
+  <desc id="pm-desc">同一个请求 B 在固定树上逐步匹配：先从 Root 找到 [10,20] 并完全匹配 2 个 Token；再沿 Token 30 找到 [30,40,50]，部分匹配到 [30]，累计 3 个 Token；匹配终点在压缩节点内部，[30,40,50] 原位分裂为 [30] 和 [40,50]，返回 matched_length=3 和 last_node=[30]，不插入 [60,70]。</desc>
+  <rect width="1200" height="800" fill="#f6f7f9"/>
+
+  <!-- request strip -->
+  <text x="600" y="34" text-anchor="middle" fill="#6b7280" font-family="'DejaVu Sans Mono',monospace" font-size="13">新请求 B = [10,20,30,60,70]</text>
+  
+      <g class="tok tok-10">
+        <rect class="box" x="396" y="56" width="72" height="52" rx="10"/>
+        <text class="txt" x="432" y="80" text-anchor="middle">10</text>
+        <text class="pos" x="432" y="98" text-anchor="middle">p0</text>
+      </g>
+      <g class="tok tok-20">
+        <rect class="box" x="480" y="56" width="72" height="52" rx="10"/>
+        <text class="txt" x="516" y="80" text-anchor="middle">20</text>
+        <text class="pos" x="516" y="98" text-anchor="middle">p1</text>
+      </g>
+      <g class="tok tok-30">
+        <rect class="box" x="564" y="56" width="72" height="52" rx="10"/>
+        <text class="txt" x="600" y="80" text-anchor="middle">30</text>
+        <text class="pos" x="600" y="98" text-anchor="middle">p2</text>
+      </g>
+      <g class="tok tok-60">
+        <rect class="box" x="648" y="56" width="72" height="52" rx="10"/>
+        <text class="txt" x="684" y="80" text-anchor="middle">60</text>
+        <text class="pos" x="684" y="98" text-anchor="middle">p3</text>
+      </g>
+      <g class="tok tok-70">
+        <rect class="box" x="732" y="56" width="72" height="52" rx="10"/>
+        <text class="txt" x="768" y="80" text-anchor="middle">70</text>
+        <text class="pos" x="768" y="98" text-anchor="middle">p4</text>
+      </g>
+  <text x="820" y="76" fill="#6b7280" font-family="'Noto Sans CJK SC',sans-serif" font-size="11">累计命中</text>
+  <text class="count count-1" x="820" y="100" font-family="'DejaVu Sans Mono',monospace" font-size="22" font-weight="600" text-anchor="start">0 / 5</text><text class="count count-2" x="820" y="100" font-family="'DejaVu Sans Mono',monospace" font-size="22" font-weight="600" text-anchor="start">2 / 5</text><text class="count count-3" x="820" y="100" font-family="'DejaVu Sans Mono',monospace" font-size="22" font-weight="600" text-anchor="start">3 / 5</text><text class="count count-4" x="820" y="100" font-family="'DejaVu Sans Mono',monospace" font-size="22" font-weight="600" text-anchor="start">3 / 5</text>
+  <rect x="396" y="126" width="408" height="4" rx="2" fill="#e3e6ea"/>
+  <rect class="progress-fill" x="396" y="126" width="408" height="4" rx="2" fill="#0f8b7e"/>
+  <g class="caret caret-10"><polygon points="426,122 438,122 432,115" fill="#0f8b7e"/></g><g class="caret caret-30"><polygon points="594,122 606,122 600,115" fill="#0f8b7e"/></g><g class="caret caret-60"><polygon points="678,122 690,122 684,115" fill="#0f8b7e"/></g>
+  <g class="no-insert">
+    <rect x="642" y="50" width="168" height="64" rx="12" fill="none" stroke="#8a93a3" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <text x="726" y="44" text-anchor="middle" fill="#6b7280" font-family="'Noto Sans CJK SC',sans-serif" font-size="10">未插入</text>
+  </g>
+
+  <!-- persistent tree -->
+  <g class="edges">
+    <path class="edge edge-root" d="M600 260 V310"/>
+    <path class="edge" d="M600 420 V460 M360 460 H840"/>
+    <path class="edge edge-10-30" d="M360 460 V500"/>
+    <path class="edge" d="M840 460 V500"/>
+    <path class="edge edge-30-40" d="M360 610 V690" pathLength="1"/>
+  </g>
+
+  <g class="split-marker">
+    <path d="M338 650 H382" fill="none" stroke="#0f8b7e" stroke-width="2" stroke-dasharray="3,3"/>
+    <text x="390" y="646" fill="#0f8b7e" font-family="'Noto Sans CJK SC',sans-serif" font-size="10">匹配边界</text>
+  </g>
+
+  <g class="node node-root">
+    <rect class="box" x="500" y="170" width="200" height="90" rx="20"/>
+    <text class="label root-label" x="600" y="225" text-anchor="middle">Root</text>
+  </g>
+
+  <g class="node node-10">
+    <rect class="ring ring-10" x="394" y="304" width="412" height="122" rx="28"/>
+    <rect class="box" x="400" y="310" width="400" height="110" rx="22"/>
+    <text class="label" x="600" y="375" text-anchor="middle">[10,20]</text>
+  </g>
+
+  <g class="node node-30">
+    <rect class="ring ring-30" x="194" y="494" width="332" height="122" rx="28"/>
+    <rect class="box" x="200" y="500" width="320" height="110" rx="22"/>
+    <text class="label label-full" x="360" y="565" text-anchor="middle">[30,40,50]</text>
+    <text class="label label-split" x="360" y="565" text-anchor="middle">[30]</text>
+  </g>
+
+  <g class="node node-80">
+    <rect class="box" x="680" y="500" width="320" height="110" rx="22"/>
+    <text class="label" x="840" y="565" text-anchor="middle">[80,90]</text>
+  </g>
+
+  <g class="node node-40">
+    <rect class="box" x="200" y="690" width="320" height="100" rx="22"/>
+    <text class="label" x="360" y="750" text-anchor="middle">[40,50]</text>
+  </g>
+</svg>
+
+    </div>
+
+    <section class="caption" aria-live="polite">
+      <div class="caption-panel caption-idle">
+        <h3>准备开始</h3>
+        <p>点击播放或“下一步”，观察请求 B 如何在同一棵 Radix Tree 上完成前缀匹配。</p>
+      </div>
+      <div class="caption-panel" data-motion-item data-step="1" aria-label="步骤 1 从 Root 查找第一条分支">
+        <h3>从 Root 查找第一条分支</h3>
+        <p>请求 B 以 Token 10 开始，找到以 [10,20] 开头的缓存节点。</p>
+      </div>
+      <div class="caption-panel" data-motion-item data-step="2" aria-label="步骤 2 第一个节点完全匹配">
+        <h3>第一个节点完全匹配</h3>
+        <p>[10,20] 与请求 B 的前两个 Token 完全一致，累计命中长度为 2，继续向下查找剩余的 [30,60,70]。</p>
+      </div>
+      <div class="caption-panel" data-motion-item data-step="3" aria-label="步骤 3 第二个节点部分匹配">
+        <h3>第二个节点部分匹配</h3>
+        <p>沿 Token 30 分支找到 [30,40,50]，其中只有 [30] 与请求 B 相同，累计命中长度为 3。</p>
+      </div>
+      <div class="caption-panel" data-motion-item data-step="4" aria-label="步骤 4 匹配结束并确定结果">
+        <h3>匹配结束并确定结果</h3>
+        <p>匹配终点位于压缩节点内部，需要将 [30] 分裂成独立节点。返回长度 3 和最后匹配节点，但不插入 [60,70]。</p>
+        <div class="result">
+          <span><em>matched_length</em><b>3</b></span>
+          <span><em>last_node</em><b>[30]</b></span>
+          <span><em>未插入</em><b>[60,70]</b></span>
+        </div>
+      </div>
+    </section>
+
+    <p class="note">匹配到压缩节点内部时，节点在匹配边界处分裂：原节点保留 <code>[30]</code>，剩余后缀 <code>[40,50]</code> 成为其子节点。命中长度是 3，未命中的 <code>[60,70]</code> 本轮不插入。</p>
+
+    <noscript><p>动画控制需要 JavaScript；上方显示的是完整的最终状态。</p></noscript>
+  </main>
+
+  <script data-diagram-controls>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const staticOverride = params.get('motion') === 'static' || document.documentElement.dataset.motion === 'static';
+      const requestedStep = params.get('step');
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+      document.fonts.ready.then(() => { document.documentElement.dataset.fontsReady = 'true'; });
+
+      document.querySelectorAll('[data-motion-root]').forEach((root) => {
+        const count = Number(root.dataset.stepCount);
+        const hold = parseFloat(getComputedStyle(root).getPropertyValue('--motion-hold')) || 720;
+        const parsedStep = requestedStep !== null && /^\d+$/.test(requestedStep) ? Number(requestedStep) : null;
+        const exactStep = params.get('motion') === 'step' && Number.isSafeInteger(parsedStep) && parsedStep >= 0 && parsedStep <= count ? parsedStep : null;
+        const items = [...root.querySelectorAll('[data-motion-item]')];
+        const labels = Array.from({ length: count + 1 }, (_, index) => index === 0
+          ? 'Ready'
+          : items.filter((item) => !item.hasAttribute('data-motion-decorative') && Number(item.dataset.step) === index)
+              .map((item) => item.getAttribute('aria-label')).join('; '));
+        const controls = root.querySelector('[data-motion-controls]');
+        const status = root.querySelector('[data-motion-status]');
+        const visibleStep = root.querySelector('[data-motion-step-label]');
+        let step = count;
+        let timer = 0;
+        let playing = false;
+        let stepBeforeReduce = 0;
+        let resumeAfterReduce = root.dataset.motionMode === 'reveal';
+
+        const buttons = (action) => controls.querySelector(`[data-motion-action="${action}"]`);
+        const clearClock = () => { window.clearTimeout(timer); timer = 0; };
+        const announce = () => { status.textContent = `Step ${step} of ${count}: ${labels[step] || 'Complete'}`; };
+        const setControlsAvailable = (available) => {
+          controls.hidden = !available;
+          controls.setAttribute('aria-hidden', String(!available));
+          controls.dataset.playbackDisabled = String(!available);
+          controls.querySelectorAll('button').forEach((control) => { control.disabled = !available; });
+        };
+
+        function render(next, userInitiated = false) {
+          step = Math.max(0, Math.min(count, next));
+          root.dataset.stepCurrent = String(step);
+          root.dataset.frame = step === count ? 'end' : step === 0 ? 'start' : 'step';
+          items.forEach((item) => {
+            const itemStep = Number(item.dataset.step);
+            item.classList.toggle('is-visible', itemStep <= step);
+            item.classList.toggle('is-current', itemStep === step);
+          });
+          if (visibleStep) visibleStep.textContent = String(step);
+          const unavailable = controls.dataset.playbackDisabled === 'true';
+          buttons('prev').disabled = unavailable || step === 0;
+          buttons('next').disabled = unavailable || step === count;
+          if (userInitiated) announce();
+        }
+
+        function pause(userInitiated = false) {
+          clearClock();
+          playing = false;
+          root.classList.remove('is-playing');
+          buttons('play').setAttribute('aria-pressed', 'false');
+          buttons('pause').setAttribute('aria-pressed', 'true');
+          if (userInitiated) status.textContent = `Paused at step ${step} of ${count}`;
+        }
+
+        function finish() {
+          pause(false);
+          root.dataset.frame = 'end';
+          status.textContent = `Complete · step ${count} of ${count}`;
+        }
+
+        function tick() {
+          if (!playing) return;
+          if (step >= count) { finish(); return; }
+          render(step + 1, false);
+          if (step >= count) { finish(); return; }
+          timer = window.setTimeout(tick, hold);
+        }
+
+        function play(fromStart = false, userInitiated = false) {
+          clearClock();
+          if (fromStart || step >= count) render(0, userInitiated);
+          playing = true;
+          root.classList.add('is-playing');
+          buttons('play').setAttribute('aria-pressed', 'true');
+          buttons('pause').setAttribute('aria-pressed', 'false');
+          timer = window.setTimeout(tick, hold);
+        }
+
+        controls.addEventListener('click', (event) => {
+          const button = event.target.closest('[data-motion-action]');
+          if (!button) return;
+          const action = button.dataset.motionAction;
+          if (action === 'play') play(false, true);
+          if (action === 'pause') pause(true);
+          if (action === 'replay') play(true, true);
+          if (action === 'prev') { pause(false); render(step - 1, true); }
+          if (action === 'next') { pause(false); render(step + 1, true); }
+        });
+
+        root.addEventListener('keydown', (event) => {
+          if (event.target.matches('input, textarea, select, a[href]')) return;
+          const keys = { ArrowLeft: step - 1, ArrowRight: step + 1, Home: 0, End: count };
+          if (event.code === 'Space' && !event.target.closest('button')) {
+            event.preventDefault();
+            playing ? pause(true) : play(false, true);
+            return;
+          }
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'r') {
+            event.preventDefault();
+            play(true, true);
+            return;
+          }
+          if (!(event.key in keys)) return;
+          event.preventDefault();
+          pause(false);
+          render(keys[event.key], true);
+        });
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden' && playing) pause(false);
+        });
+        reduce.addEventListener('change', (event) => {
+          if (event.matches && root.dataset.motionState !== 'reduced') {
+            stepBeforeReduce = step;
+            resumeAfterReduce = playing;
+          }
+          pause(false);
+          if (event.matches) {
+            setControlsAvailable(false);
+            render(count, false);
+            root.dataset.frame = 'static';
+            root.dataset.motionState = 'reduced';
+            status.textContent = 'Reduced motion · complete static frame · playback controls unavailable';
+          } else if (staticOverride || root.dataset.motionMode === 'none') {
+            setControlsAvailable(false);
+            render(count, false);
+            root.dataset.frame = 'static';
+            root.dataset.motionState = 'static';
+            status.textContent = 'Static frame · complete diagram · playback controls unavailable';
+          } else {
+            delete root.dataset.motionState;
+            if (exactStep !== null) {
+              setControlsAvailable(false);
+              render(exactStep, false);
+              root.dataset.frame = 'step';
+              root.dataset.motionState = 'test';
+              status.textContent = `Test frame · step ${step} of ${count} · playback controls unavailable`;
+            } else {
+              setControlsAvailable(true);
+              render(stepBeforeReduce, false);
+              status.textContent = `Ready · step ${step} of ${count}`;
+              if (resumeAfterReduce && root.dataset.motionMode === 'reveal') {
+                play(false, false);
+              }
+            }
+            resumeAfterReduce = false;
+          }
+        });
+
+        if (staticOverride) {
+          document.documentElement.dataset.motion = 'static';
+          pause(false);
+          setControlsAvailable(false);
+          render(count, false);
+          root.dataset.frame = 'static';
+          root.dataset.motionState = 'static';
+          status.textContent = 'Static frame · complete diagram · playback controls unavailable';
+        } else if (reduce.matches || root.dataset.motionMode === 'none') {
+          pause(false);
+          setControlsAvailable(false);
+          render(count, false);
+          root.dataset.frame = 'static';
+          root.dataset.motionState = reduce.matches ? 'reduced' : 'static';
+          status.textContent = reduce.matches
+            ? 'Reduced motion · complete static frame · playback controls unavailable'
+            : 'Static frame · complete diagram · playback controls unavailable';
+        } else if (exactStep !== null) {
+          document.documentElement.dataset.motion = 'step';
+          pause(false);
+          setControlsAvailable(false);
+          render(exactStep, false);
+          root.dataset.frame = 'step';
+          root.dataset.motionState = 'test';
+          status.textContent = `Test frame · step ${step} of ${count} · playback controls unavailable`;
+        } else if (root.dataset.motionMode === 'reveal') {
+          setControlsAvailable(true);
+          render(0, false);
+          play(false, false);
+        } else {
+          pause(false);
+          setControlsAvailable(true);
+          render(0, false);
+          status.textContent = `Ready · step 0 of ${count}`;
+        }
+        root.classList.add('motion-ready');
+      });
+    })();
+  </script>
+</body>
+</html>

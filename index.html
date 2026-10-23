@@ -219,9 +219,8 @@
     <a class="card" href="demos/radix-tree-insertion/">
       <h3>Radix Tree 请求插入过程</h3>
       <p>
-        四步动画：插入 A 建链 → 匹配 B 并在公共前缀边界分裂 → 只写入 B 的新增后缀
-        → 匹配 C 再次分裂，把 [80,90] 挂到 [10,20] 下。同步显示每个请求的命中 / 新增 token 数，
-        以及命中前缀的 KV 直接复用、无需重新 prefill 的关系。
+        四步原位动画：同一棵树上插入 A、匹配 B 并原位分裂、写入 B 的新增后缀、
+        插入 C 并再次分裂。节点标签、颜色和新增分支都在原地变化，不切换整张图。
       </p>
       <div class="meta">
         <span class="chip">demos/radix-tree-insertion/</span>
@@ -232,8 +231,8 @@
     <a class="card" href="demos/radix-tree-lockref/">
       <h3>Radix Tree 的 lock_ref 状态</h3>
       <p>
-        三帧展示 A、B 的锁计数如何变化：共享路径 ref=2、各自叶子 ref=1；A 结束后 [40,50] 归零成为驱逐候选；
-        真正驱逐后只保留 B 的路径。节点颜色对应持有者集合，ref 数字直接标在节点上。
+        三步原位动画：同一棵树上观察共享路径 ref=2、各自叶子 ref=1；A 结束后 [40,50] 归零成为驱逐候选；
+        真正驱逐后只保留 B 的路径。颜色、持有者标签和 ref 计数都在原地变化。
       </p>
       <div class="meta">
         <span class="chip">demos/radix-tree-lockref/</span>
@@ -252,6 +251,19 @@
         <span class="chip">demos/prefix-cache-attention/</span>
         <span class="chip">step animation</span>
         <span class="chip">prefix cache</span>
+      </div>
+    </a>
+    <a class="card" href="demos/prefix-match/">
+      <h3>Radix Tree 的 Prefix Match 过程</h3>
+      <p>
+        四步原位动画：同一棵树上从 Root 找到 [10,20]，完全匹配 2 个 Token；再沿 [30,40,50]
+        部分匹配到 [30]，累计 3 个 Token；最后 [30,40,50] 在匹配边界原位分裂出 [30] 和 [40,50]，
+        返回 matched_length 与 last_node，不插入 [60,70]。
+      </p>
+      <div class="meta">
+        <span class="chip">demos/prefix-match/</span>
+        <span class="chip">in-place animation</span>
+        <span class="chip">prefix match</span>
       </div>
     </a>
   </div>

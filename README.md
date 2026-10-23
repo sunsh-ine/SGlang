@@ -26,9 +26,10 @@
 
 | 图 | 在线地址 | 说明 |
 |---|---|---|
-| Radix Tree 请求插入过程 | https://sunsh-ine.github.io/SGlang/demos/radix-tree-insertion/ | 四步动画演示 prefix match、节点分裂、新增后缀插入与 KV 复用；示例序列 A / B / C |
-| Radix Tree 的 lock_ref 状态 | https://sunsh-ine.github.io/SGlang/demos/radix-tree-lockref/ | 三帧动画：A、B 共享 / 独占时的 lock_ref 计数，A 结束后归零，以及叶子被驱逐后的树 |
+| Radix Tree 请求插入过程 | https://sunsh-ine.github.io/SGlang/demos/radix-tree-insertion/ | 四步原位动画：同一棵树上插入 A、匹配 B 并分裂、写入新增后缀、插入 C；示例序列 A / B / C |
+| Radix Tree 的 lock_ref 状态 | https://sunsh-ine.github.io/SGlang/demos/radix-tree-lockref/ | 三步原位动画：A、B 共享 / 独占时的 lock_ref 计数，A 结束后归零，以及叶子被驱逐后的树 |
 | Prefix Cache 命中时的 Attention 输入 | https://sunsh-ine.github.io/SGlang/demos/prefix-cache-attention/ | 两帧动画：无缓存 5×5 因果矩阵 vs 命中 3 个 token 后的 2×5 输入；Q/K/V 计算量与 KV Pool 读写 |
+| Radix Tree 的 Prefix Match 过程 | https://sunsh-ine.github.io/SGlang/demos/prefix-match/ | 四步原位动画：完全匹配、部分匹配、在压缩节点内部边界分裂，返回 matched_length 与 last_node |
 
 ## 文件说明
 
@@ -36,9 +37,10 @@
 index.html                                  目录页（GitHub Pages 入口）
 overview/sglang-runtime-architecture.html   整体架构
 components/*.html                           组件图（每张都是自包含 HTML，可离线打开）
-demos/radix-tree-insertion/index.html        Radix Tree 请求插入过程动画
-demos/radix-tree-lockref/index.html          Radix Tree 的 lock_ref 状态动画
+demos/radix-tree-insertion/index.html        请求插入过程原位动画
+demos/radix-tree-lockref/index.html          lock_ref 状态原位动画
 demos/prefix-cache-attention/index.html      Prefix Cache 与 Attention 输入动画
+demos/prefix-match/index.html                Prefix Match 原位动画
 components/*.json                           Archify 的 typed JSON 源，改一处即可重新渲染
 components/sglang-scheduler-cpu-gpu-timeline.generate.py
                                             时间线图的生成脚本（纯标准库，改数据后重跑）
