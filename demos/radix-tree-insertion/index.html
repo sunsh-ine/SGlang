@@ -212,56 +212,56 @@
     <p class="sr-only" data-motion-status role="status" aria-live="polite" aria-atomic="true"></p>
 
     <div class="figure">
-<svg viewBox="0 0 1200 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ins-title ins-desc">
+<svg viewBox="0 0 1200 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ins-title ins-desc">
   <title id="ins-title">Radix Tree 的请求插入过程</title>
   <desc id="ins-desc">同一棵树上观察请求 A、B、C 的插入：A 写入整条边；B 命中 3 个 token，原节点分裂出 [40,50]，只追加 [60,70]；C 只命中 2 个 token，[10,20,30] 再次分裂为 [10,20] 和 [30]，[80,90] 与 [30] 并列为子节点。</desc>
-  <rect width="1200" height="760" fill="#f6f7f9"/>
+  <rect width="1200" height="560" fill="#f6f7f9"/>
 
   <g class="edges">
-    <path class="edge e-root" d="M600 160 V210"/>
-    <path class="edge e-trunk" d="M600 310 V350"/>
-    <path class="edge e-direct-40" d="M340 350 H600 M340 350 V600"/>
-    <path class="edge e-direct-60" d="M600 350 V600"/>
-    <path class="edge e-split" d="M480 350 H600 M480 350 V400"/>
-    <path class="edge e-split" d="M920 350 H600 M920 350 V400"/>
-    <path class="edge e-split" d="M480 490 V540 M340 540 H600 M340 540 V600 M600 540 V600"/>
+    <path class="edge e-root" d="M600 106 V150"/>
+    <path class="edge e-trunk" d="M600 220 V260"/>
+    <path class="edge e-direct-40" d="M360 260 H600 M360 260 V440"/>
+    <path class="edge e-direct-60" d="M600 260 V440"/>
+    <path class="edge e-split" d="M480 260 H600 M480 260 V300"/>
+    <path class="edge e-split" d="M820 260 H600 M820 260 V300"/>
+    <path class="edge e-split" d="M480 364 V400 M360 400 H600 M360 400 V440 M600 400 V440"/>
   </g>
 
   <g class="node root">
-    <rect class="box" x="500" y="80" width="200" height="80" rx="22"/>
-    <text class="tok root-tok" x="600" y="135" text-anchor="middle" font-size="15">Root</text>
+    <rect class="box" x="530" y="50" width="140" height="56" rx="18"/>
+    <text class="tok root-tok" x="600" y="84" text-anchor="middle" font-size="15">Root</text>
   </g>
 
   
     <g class="node n-1">
-      <rect class="box" x="400" y="210" width="400" height="100" rx="22"/>
-      <text class="tok lbl-full" x="600" y="270" text-anchor="middle" font-size="15">[10,20,30,40,50]</text>
-      <text class="tok lbl-mid" x="600" y="270" text-anchor="middle" font-size="15">[10,20,30]</text>
-      <text class="tok lbl-final" x="600" y="270" text-anchor="middle" font-size="15">[10,20]</text>
+      <rect class="box" x="460" y="150" width="280" height="70" rx="18"/>
+      <text class="tok lbl-full" x="600" y="191" text-anchor="middle" font-size="15">[10,20,30,40,50]</text>
+      <text class="tok lbl-mid" x="600" y="191" text-anchor="middle" font-size="15">[10,20,30]</text>
+      <text class="tok lbl-final" x="600" y="191" text-anchor="middle" font-size="15">[10,20]</text>
     </g>
   
     <g class="node n-30">
-      <rect class="box" x="360" y="400" width="240" height="90" rx="22"/>
-      <text class="tok" x="480.0" y="455.0" text-anchor="middle" font-size="15">[30]</text>
+      <rect class="box" x="400" y="300" width="160" height="64" rx="22"/>
+      <text class="tok" x="480.0" y="339.0" text-anchor="middle" font-size="15">[30]</text>
       
     </g>
   
     <g class="node n-4050">
-      <rect class="box" x="220" y="600" width="240" height="90" rx="22"/>
-      <text class="tok" x="340.0" y="655.0" text-anchor="middle" font-size="15">[40,50]</text>
-      <g class="badge"><rect class="badge-box" x="418" y="610" width="26" height="20" rx="3"/><text class="badge-txt" x="431" y="624" text-anchor="middle">A</text></g>
+      <rect class="box" x="270" y="440" width="180" height="64" rx="22"/>
+      <text class="tok" x="360.0" y="479.0" text-anchor="middle" font-size="15">[40,50]</text>
+      <g class="badge"><rect class="badge-box" x="408" y="448" width="26" height="18" rx="3"/><text class="badge-txt" x="421" y="461" text-anchor="middle">A</text></g>
     </g>
   
     <g class="node n-6070">
-      <rect class="box" x="480" y="600" width="240" height="90" rx="22"/>
-      <text class="tok" x="600.0" y="655.0" text-anchor="middle" font-size="15">[60,70]</text>
-      <g class="badge"><rect class="badge-box" x="678" y="610" width="26" height="20" rx="3"/><text class="badge-txt" x="691" y="624" text-anchor="middle">B</text></g>
+      <rect class="box" x="510" y="440" width="180" height="64" rx="22"/>
+      <text class="tok" x="600.0" y="479.0" text-anchor="middle" font-size="15">[60,70]</text>
+      <g class="badge"><rect class="badge-box" x="648" y="448" width="26" height="18" rx="3"/><text class="badge-txt" x="661" y="461" text-anchor="middle">B</text></g>
     </g>
   
     <g class="node n-80">
-      <rect class="box" x="800" y="400" width="240" height="90" rx="22"/>
-      <text class="tok" x="920.0" y="455.0" text-anchor="middle" font-size="15">[80,90]</text>
-      <g class="badge"><rect class="badge-box" x="998" y="410" width="26" height="20" rx="3"/><text class="badge-txt" x="1011" y="424" text-anchor="middle">C</text></g>
+      <rect class="box" x="730" y="300" width="180" height="64" rx="22"/>
+      <text class="tok" x="820.0" y="339.0" text-anchor="middle" font-size="15">[80,90]</text>
+      <g class="badge"><rect class="badge-box" x="868" y="308" width="26" height="18" rx="3"/><text class="badge-txt" x="881" y="321" text-anchor="middle">C</text></g>
     </g>
 </svg>
 </div>

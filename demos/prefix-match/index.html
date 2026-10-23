@@ -363,10 +363,10 @@
 
     <div class="figure">
       
-<svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="pm-title pm-desc">
+<svg viewBox="0 0 1200 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="pm-title pm-desc">
   <title id="pm-title">Radix Tree 的 Prefix Match 过程</title>
   <desc id="pm-desc">同一个请求 B 在固定树上逐步匹配：先从 Root 找到 [10,20] 并完全匹配 2 个 Token；再沿 Token 30 找到 [30,40,50]，部分匹配到 [30]，累计 3 个 Token；匹配终点在压缩节点内部，[30,40,50] 原位分裂为 [30] 和 [40,50]，返回 matched_length=3 和 last_node=[30]，不插入 [60,70]。</desc>
-  <rect width="1200" height="800" fill="#f6f7f9"/>
+  <rect width="1200" height="620" fill="#f6f7f9"/>
 
   <!-- request strip -->
   <text x="600" y="34" text-anchor="middle" fill="#6b7280" font-family="'DejaVu Sans Mono',monospace" font-size="13">新请求 B = [10,20,30,60,70]</text>
@@ -408,11 +408,11 @@
 
   <!-- persistent tree -->
   <g class="edges">
-    <path class="edge edge-root" d="M600 260 V310"/>
-    <path class="edge" d="M600 420 V460 M360 460 H840"/>
-    <path class="edge edge-10-30" d="M360 460 V500"/>
-    <path class="edge" d="M840 460 V500"/>
-    <path class="edge edge-30-40" d="M360 610 V690" pathLength="1"/>
+    <path class="edge edge-root" d="M600 216 V250"/>
+    <path class="edge" d="M600 320 V350 M430 350 H770"/>
+    <path class="edge edge-10-30" d="M430 350 V390"/>
+    <path class="edge" d="M770 350 V390"/>
+    <path class="edge edge-30-40" d="M430 454 V500" pathLength="1"/>
   </g>
 
   <g class="split-marker">
@@ -421,31 +421,31 @@
   </g>
 
   <g class="node node-root">
-    <rect class="box" x="500" y="170" width="200" height="90" rx="20"/>
-    <text class="label root-label" x="600" y="225" text-anchor="middle">Root</text>
+    <rect class="box" x="530" y="160" width="140" height="56" rx="18"/>
+    <text class="label root-label" x="600" y="192" text-anchor="middle">Root</text>
   </g>
 
   <g class="node node-10">
-    <rect class="ring ring-10" x="394" y="304" width="412" height="122" rx="28"/>
-    <rect class="box" x="400" y="310" width="400" height="110" rx="22"/>
-    <text class="label" x="600" y="375" text-anchor="middle">[10,20]</text>
+    <rect class="ring ring-10" x="454" y="244" width="292" height="82" rx="22"/>
+    <rect class="box" x="460" y="250" width="280" height="70" rx="18"/>
+    <text class="label" x="600" y="285" text-anchor="middle">[10,20]</text>
   </g>
 
   <g class="node node-30">
-    <rect class="ring ring-30" x="194" y="494" width="332" height="122" rx="28"/>
-    <rect class="box" x="200" y="500" width="320" height="110" rx="22"/>
-    <text class="label label-full" x="360" y="565" text-anchor="middle">[30,40,50]</text>
-    <text class="label label-split" x="360" y="565" text-anchor="middle">[30]</text>
+    <rect class="ring ring-30" x="304" y="384" width="252" height="76" rx="22"/>
+    <rect class="box" x="310" y="390" width="240" height="64" rx="16"/>
+    <text class="label label-full" x="430" y="422" text-anchor="middle">[30,40,50]</text>
+    <text class="label label-split" x="430" y="422" text-anchor="middle">[30]</text>
   </g>
 
   <g class="node node-80">
-    <rect class="box" x="680" y="500" width="320" height="110" rx="22"/>
-    <text class="label" x="840" y="565" text-anchor="middle">[80,90]</text>
+    <rect class="box" x="650" y="390" width="240" height="64" rx="16"/>
+    <text class="label" x="770" y="422" text-anchor="middle">[80,90]</text>
   </g>
 
   <g class="node node-40">
-    <rect class="box" x="200" y="690" width="320" height="100" rx="22"/>
-    <text class="label" x="360" y="750" text-anchor="middle">[40,50]</text>
+    <rect class="box" x="310" y="500" width="240" height="64" rx="16"/>
+    <text class="label" x="430" y="532" text-anchor="middle">[40,50]</text>
   </g>
 </svg>
 
