@@ -253,19 +253,19 @@
     <p class="sr-only" data-motion-status role="status" aria-live="polite" aria-atomic="true"></p>
 
     <div class="figure">
-<svg viewBox="0 0 1200 570" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="lr-title lr-desc">
+<svg viewBox="0 0 1200 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="lr-title lr-desc">
   <title id="lr-title">Radix Tree 的 lock_ref 状态</title>
   <desc id="lr-desc">同一棵树上观察 lock_ref：A、B 同时运行时共享节点为 2、各自叶子为 1；A 结束后 [40,50] 归零成为驱逐候选，[10,20] 与 [30] 仍被 B 持有；[40,50] 被驱逐后只保留 B 的路径。</desc>
-  <rect width="1200" height="570" fill="#f6f7f9"/>
+  <rect width="1200" height="580" fill="#f6f7f9"/>
 
   <g class="edges">
     <path class="edge" d="M600 106 V150"/>
-    <path class="edge" d="M600 230 V290"/>
-    <path class="edge" d="M600 370 V390"/>
-    <path class="edge edge-4050" d="M420 390 H600"/>
-    <path class="edge" d="M600 390 H780"/>
-    <path class="edge edge-4050" d="M420 390 V470"/>
-    <path class="edge" d="M780 390 V470"/>
+    <path class="edge" d="M600 240 V290"/>
+    <path class="edge" d="M600 380 V400"/>
+    <path class="edge edge-4050" d="M420 400 H600"/>
+    <path class="edge" d="M600 400 H780"/>
+    <path class="edge edge-4050" d="M420 400 V470"/>
+    <path class="edge" d="M780 400 V470"/>
   </g>
 
   <g class="node root">
@@ -275,8 +275,8 @@
 
   
     <g class="node n-1020">
-      <rect class="box" x="460" y="150" width="280" height="80" rx="22"/>
-      <text class="tok" x="600.0" y="200.0" text-anchor="middle" font-size="15">[10,20]</text>
+      <rect class="box" x="460" y="150" width="280" height="90" rx="22"/>
+      <text class="tok" x="600.0" y="205.0" text-anchor="middle" font-size="15">[10,20]</text>
       <g class="badge">
         <rect class="badge-box" x="676" y="158" width="56" height="22" rx="5"/>
         <text class="ref ref-2" x="704" y="173" text-anchor="middle">ref 2</text>
@@ -284,15 +284,15 @@
         <text class="ref ref-0" x="704" y="173" text-anchor="middle">ref 0</text>
       </g>
       <g class="holders">
-        <text class="hold-label" x="476" y="214">持有</text>
-        <g class="chip chip-a"><rect x="518" y="198" width="24" height="18" rx="3"/><text x="530" y="211" text-anchor="middle">A</text></g>
-        <g class="chip chip-b"><rect x="550" y="198" width="24" height="18" rx="3"/><text x="562" y="211" text-anchor="middle">B</text></g>
+        <text class="hold-label" x="476" y="224">持有</text>
+        <g class="chip chip-a"><rect x="518" y="208" width="24" height="18" rx="3"/><text x="530" y="221" text-anchor="middle">A</text></g>
+        <g class="chip chip-b"><rect x="550" y="208" width="24" height="18" rx="3"/><text x="562" y="221" text-anchor="middle">B</text></g>
       </g>
       
     </g>
     <g class="node n-30">
-      <rect class="box" x="500" y="290" width="200" height="80" rx="22"/>
-      <text class="tok" x="600.0" y="340.0" text-anchor="middle" font-size="15">[30]</text>
+      <rect class="box" x="500" y="290" width="200" height="90" rx="22"/>
+      <text class="tok" x="600.0" y="345.0" text-anchor="middle" font-size="15">[30]</text>
       <g class="badge">
         <rect class="badge-box" x="636" y="298" width="56" height="22" rx="5"/>
         <text class="ref ref-2" x="664" y="313" text-anchor="middle">ref 2</text>
@@ -300,15 +300,15 @@
         <text class="ref ref-0" x="664" y="313" text-anchor="middle">ref 0</text>
       </g>
       <g class="holders">
-        <text class="hold-label" x="516" y="354">持有</text>
-        <g class="chip chip-a"><rect x="558" y="338" width="24" height="18" rx="3"/><text x="570" y="351" text-anchor="middle">A</text></g>
-        <g class="chip chip-b"><rect x="590" y="338" width="24" height="18" rx="3"/><text x="602" y="351" text-anchor="middle">B</text></g>
+        <text class="hold-label" x="516" y="364">持有</text>
+        <g class="chip chip-a"><rect x="558" y="348" width="24" height="18" rx="3"/><text x="570" y="361" text-anchor="middle">A</text></g>
+        <g class="chip chip-b"><rect x="590" y="348" width="24" height="18" rx="3"/><text x="602" y="361" text-anchor="middle">B</text></g>
       </g>
       
     </g>
     <g class="node n-4050">
-      <rect class="box" x="310" y="470" width="220" height="80" rx="22"/>
-      <text class="tok" x="420.0" y="520.0" text-anchor="middle" font-size="15">[40,50]</text>
+      <rect class="box" x="310" y="470" width="220" height="90" rx="22"/>
+      <text class="tok" x="420.0" y="525.0" text-anchor="middle" font-size="15">[40,50]</text>
       <g class="badge">
         <rect class="badge-box" x="466" y="478" width="56" height="22" rx="5"/>
         <text class="ref ref-2" x="494" y="493" text-anchor="middle">ref 2</text>
@@ -316,15 +316,15 @@
         <text class="ref ref-0" x="494" y="493" text-anchor="middle">ref 0</text>
       </g>
       <g class="holders">
-        <text class="hold-label" x="326" y="534">持有</text>
-        <g class="chip chip-a"><rect x="368" y="518" width="24" height="18" rx="3"/><text x="380" y="531" text-anchor="middle">A</text></g>
-        <g class="chip chip-b"><rect x="400" y="518" width="24" height="18" rx="3"/><text x="412" y="531" text-anchor="middle">B</text></g>
+        <text class="hold-label" x="326" y="544">持有</text>
+        <g class="chip chip-a"><rect x="368" y="528" width="24" height="18" rx="3"/><text x="380" y="541" text-anchor="middle">A</text></g>
+        <g class="chip chip-b"><rect x="400" y="528" width="24" height="18" rx="3"/><text x="412" y="541" text-anchor="middle">B</text></g>
       </g>
-      <text class="no-holder" x="326" y="534">无持有者 · 可驱逐</text>
+      <text class="no-holder" x="326" y="544">无持有者 · 可驱逐</text>
     </g>
     <g class="node n-6070">
-      <rect class="box" x="670" y="470" width="220" height="80" rx="22"/>
-      <text class="tok" x="780.0" y="520.0" text-anchor="middle" font-size="15">[60,70]</text>
+      <rect class="box" x="670" y="470" width="220" height="90" rx="22"/>
+      <text class="tok" x="780.0" y="525.0" text-anchor="middle" font-size="15">[60,70]</text>
       <g class="badge">
         <rect class="badge-box" x="826" y="478" width="56" height="22" rx="5"/>
         <text class="ref ref-2" x="854" y="493" text-anchor="middle">ref 2</text>
@@ -332,19 +332,19 @@
         <text class="ref ref-0" x="854" y="493" text-anchor="middle">ref 0</text>
       </g>
       <g class="holders">
-        <text class="hold-label" x="686" y="534">持有</text>
-        <g class="chip chip-a"><rect x="728" y="518" width="24" height="18" rx="3"/><text x="740" y="531" text-anchor="middle">A</text></g>
-        <g class="chip chip-b"><rect x="760" y="518" width="24" height="18" rx="3"/><text x="772" y="531" text-anchor="middle">B</text></g>
+        <text class="hold-label" x="686" y="544">持有</text>
+        <g class="chip chip-a"><rect x="728" y="528" width="24" height="18" rx="3"/><text x="740" y="541" text-anchor="middle">A</text></g>
+        <g class="chip chip-b"><rect x="760" y="528" width="24" height="18" rx="3"/><text x="772" y="541" text-anchor="middle">B</text></g>
       </g>
       
     </g>
   
     <g class="ghost">
-      <rect class="ghost-box" x="310" y="470" width="220" height="80" rx="18"/>
-      <text class="ghost-tok" x="420" y="506" text-anchor="middle">[40,50]</text>
+      <rect class="ghost-box" x="310" y="470" width="220" height="90" rx="18"/>
+      <text class="ghost-tok" x="420" y="502" text-anchor="middle">[40,50]</text>
       <rect class="ghost-badge" x="462" y="640" width="56" height="22" rx="5"/>
       <text class="ghost-ref" x="498" y="493" text-anchor="middle">ref —</text>
-      <text class="ghost-note" x="326" y="534">已驱逐 · KV 已释放</text>
+      <text class="ghost-note" x="326" y="544">已驱逐 · KV 已释放</text>
     </g>
 </svg>
 </div>
