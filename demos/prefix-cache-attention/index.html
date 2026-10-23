@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prefix Cache 命中时，Attention 输入的变化</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Serif+SC:wght@400;600&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --color-paper: #f5f5f5;
+      --color-ink: #2d3142;
+      --color-muted: #4f5d75;
+      --color-soft: #7a8399;
+      --color-accent: #eb6c36;
+      --color-rule: rgba(45,49,66,0.12);
+      --font-sans: 'Geist', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+      --font-serif: 'Instrument Serif', 'Noto Serif', 'Noto Serif SC', 'Songti SC', serif;
+      --font-mono: 'Geist Mono', ui-monospace, monospace;
+      --motion-fast: 160ms;
+      --motion-step: 480ms;
+      --motion-hold: 1200ms;
+      --motion-total: 2400ms;
+      --motion-ease: cubic-bezier(.2,.8,.2,1);
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 48px 32px 64px;
+      color: var(--color-ink);
+      background: var(--color-paper);
+      font-family: var(--font-sans);
+    }
+    [data-motion-root] { width: min(100%, 1200px); margin: 0 auto; }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--color-muted);
+      font: 500 11px/1.4 var(--font-mono);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    .back-nav { margin: 0 0 18px; }
+    .back-nav a {
+      color: var(--color-muted);
+      font: 500 12px/1.4 var(--font-sans);
+      text-decoration: none;
+    }
+    .back-nav a:hover { color: var(--color-accent); }
+    h1 { margin: 0 0 12px; font: 400 34px/1.15 var(--font-serif); }
+    .subtitle {
+      margin: 0 0 24px;
+      max-width: 88ch;
+      color: var(--color-muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+    .rail {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin: 0 0 20px;
+      padding: 0;
+      list-style: none;
+    }
+    .rail li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--color-rule);
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--color-muted);
+      transition: background var(--motion-fast) var(--motion-ease),
+                  border-color var(--motion-fast) var(--motion-ease),
+                  color var(--motion-fast) var(--motion-ease);
+    }
+    .rail .n { font: 500 11px/1 var(--font-mono); letter-spacing: .08em; }
+    .rail .t { font: 600 13px/1 var(--font-sans); }
+    [data-step-current="1"] .rail li:nth-child(1),
+    [data-step-current="2"] .rail li:nth-child(2) {
+      background: var(--color-ink);
+      border-color: var(--color-ink);
+      color: var(--color-paper);
+    }
+    [data-step-current="1"] .rail li:nth-child(1) .n,
+    [data-step-current="2"] .rail li:nth-child(2) .n { color: var(--color-accent); }
+    .figure { margin: 0 0 4px; overflow-x: auto; }
+    svg { display: block; width: 100%; min-width: 960px; height: auto; }
+    .note {
+      margin: 16px 0 0;
+      max-width: 96ch;
+      color: var(--color-muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .note code { color: var(--color-ink); font-family: var(--font-mono); font-size: 11px; }
+    .motion-ready [data-motion-item] {
+      opacity: .12;
+      transform: translateY(8px);
+      transform-box: fill-box;
+      transform-origin: center;
+      transition: opacity var(--motion-step) var(--motion-ease),
+                  transform var(--motion-step) var(--motion-ease);
+    }
+    .motion-ready [data-motion-item].is-visible,
+    .motion-ready[data-frame="end"] [data-motion-item],
+    .motion-ready[data-frame="static"] [data-motion-item] { opacity: 1; transform: none; }
+    [data-snapshot] { display: none; transform: none; pointer-events: none; }
+    [data-snapshot][data-step="2"] { display: block; }
+    .motion-ready [data-snapshot] { display: none; opacity: 1; transform: none; }
+    .motion-ready [data-snapshot].is-current {
+      display: block;
+      animation: snapshot-in var(--motion-step) var(--motion-ease);
+    }
+    @keyframes snapshot-in { from { opacity: 0; } to { opacity: 1; } }
+    [data-motion-controls] {
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--color-rule);
+    }
+    .motion-ready [data-motion-controls] { display: flex; }
+    [data-motion-controls][hidden] { display: none !important; }
+    [data-motion-controls] button {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 8px 12px;
+      border: 1px solid var(--color-muted);
+      border-radius: 4px;
+      color: var(--color-ink);
+      background: var(--color-paper);
+      font: 600 12px/1 var(--font-sans);
+      cursor: pointer;
+    }
+    [data-motion-controls] button:hover { border-color: var(--color-accent); }
+    [data-motion-controls] button:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+    [data-motion-controls] button:disabled { cursor: not-allowed; opacity: .45; }
+    [data-motion-status-visible] { margin-left: auto; color: var(--color-muted); font: 500 12px/1.4 var(--font-mono); }
+    .keyboard-help { color: var(--color-soft); font: 400 11px/1.4 var(--font-mono); }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+    noscript p { margin: 12px 0 0; color: var(--color-muted); font: 500 12px/1.4 var(--font-mono); }
+    html[data-motion="static"] [data-motion-controls],
+    html[data-motion="static"] [data-motion-decorative] { display: none !important; }
+    html[data-motion="static"] [data-motion-item] {
+      opacity: 1 !important; transform: none !important;
+      animation: none !important; transition: none !important;
+    }
+    html[data-motion="step"] [data-motion-controls],
+    html[data-motion="step"] [data-motion-decorative] { display: none !important; }
+    html[data-motion="step"] [data-motion-item] {
+      animation: none !important; transition: none !important;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important; transition-duration: .001ms !important;
+      }
+      [data-motion-item] { opacity: 1 !important; transform: none !important; }
+      [data-motion-decorative] { display: none !important; }
+      [data-motion-controls] { display: none !important; }
+    }
+    @media print {
+      [data-motion-controls], [data-motion-decorative] { display: none !important; }
+      [data-motion-item] {
+        opacity: 1 !important; transform: none !important;
+        animation: none !important; transition: none !important;
+      }
+    }
+    @media (max-width: 760px) {
+      body { padding: 32px 20px 48px; }
+      h1 { font-size: 28px; }
+    }
+</style>
+</head>
+<body>
+  <main data-motion-root data-motion-mode="reveal" data-step-count="2" data-step-current="2" data-frame="static" data-static-frame="complete">
+    <nav class="back-nav"><a href="../../">← 返回 SGLang 架构图集</a></nav>
+    <p class="eyebrow">PREFIX CACHE / ATTENTION INPUTS</p>
+    <h1>Prefix Cache 命中时，Attention 输入的变化</h1>
+    <p class="subtitle">同一个请求 <code>B = [10,20,30,60,70]</code>：没有缓存时 5 个 token 全部 Prefill；命中前 3 个 token 后，只计算 60、70 的 Q/K/V，历史 K/V 从 KV Pool 读取。注意上下文长度始终是 5，缓存命中减少的是重复前向计算。</p>
+
+    <ol class="rail" aria-hidden="true">
+      <li><span class="n">01</span><span class="t">无 Prefix Cache</span></li>
+      <li><span class="n">02</span><span class="t">命中 [10,20,30]</span></li>
+    </ol>
+
+    <div data-motion-controls role="group" aria-label="动画播放控制">
+      <button type="button" data-motion-action="prev">上一步</button>
+      <button type="button" data-motion-action="play" aria-pressed="false">播放</button>
+      <button type="button" data-motion-action="pause" aria-pressed="true">暂停</button>
+      <button type="button" data-motion-action="next">下一步</button>
+      <button type="button" data-motion-action="replay">重播</button>
+      <span class="keyboard-help">←/→ 切换 · 空格 播放/暂停 · R 重播 · Home/End 跳转</span>
+      <span data-motion-status-visible aria-hidden="true">第 <span data-motion-step-label>2</span> / 2 步</span>
+    </div>
+    <p class="sr-only" data-motion-status role="status" aria-live="polite" aria-atomic="true"></p>
+
+    <div class="figure">
+      
+<svg viewBox="0 0 1200 840" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="prefixattn-title prefixattn-desc">
+  <title id="prefixattn-title">Prefix Cache 命中时 Attention 输入的变化</title>
+  <desc id="prefixattn-desc">两帧对比请求 B = 10,20,30,60,70：没有缓存时 5 个 token 全部计算 Q/K/V 并写入 KV Pool；命中前 3 个 token 后，只计算 60、70 的 Q/K/V，历史 K/V 从 KV Pool 的 slot 5、8、12 读取，Attention 仍覆盖完整 5 个位置。Q60 只能看到 K10 到 K60，Q70 可以看到全部 5 个 K。</desc>
+  <rect width="1200" height="840" fill="#f5f5f5"/>
+
+  <rect x="60" y="24" width="540" height="160" rx="8" fill="#ffffff" stroke="rgba(45,49,66,0.12)"/>
+  <rect x="60" y="204" width="540" height="260" rx="8" fill="#ffffff" stroke="rgba(45,49,66,0.12)"/>
+  <rect x="60" y="484" width="540" height="120" rx="8" fill="#ffffff" stroke="rgba(45,49,66,0.12)"/>
+  <rect x="620" y="204" width="520" height="466" rx="8" fill="#ffffff" stroke="rgba(45,49,66,0.12)"/>
+
+  <g data-snapshot data-motion-item data-step="1" aria-label="步骤 1 没有 Prefix Cache：5 个 token 全部计算 Q、K、V，Attention 覆盖完整 5×5 因果矩阵，KV 写入池。">
+  <text x="84" y="52" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="10" font-weight="500" letter-spacing="0.16em">REQUEST B</text><text x="84" y="78" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="18">B = [10,20,30,60,70]</text><rect x="84" y="92" width="94" height="52" rx="8" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1.2"/><text x="131" y="118" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">10</text><text x="131" y="136" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">新算</text><text x="131" y="166" text-anchor="middle" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="9">p0</text><rect x="182" y="92" width="94" height="52" rx="8" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1.2"/><text x="229" y="118" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">20</text><text x="229" y="136" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">新算</text><text x="229" y="166" text-anchor="middle" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="9">p1</text><rect x="280" y="92" width="94" height="52" rx="8" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1.2"/><text x="327" y="118" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">30</text><text x="327" y="136" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">新算</text><text x="327" y="166" text-anchor="middle" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="9">p2</text><rect x="378" y="92" width="94" height="52" rx="8" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1.2"/><text x="425" y="118" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">60</text><text x="425" y="136" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">新算</text><text x="425" y="166" text-anchor="middle" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="9">p3</text><rect x="476" y="92" width="94" height="52" rx="8" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1.2"/><text x="523" y="118" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">70</text><text x="523" y="136" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">新算</text><text x="523" y="166" text-anchor="middle" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="9">p4</text><text x="84" y="232" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="16" font-weight="600">本轮计算</text><text x="84" y="252" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">5 个 token 的 hidden state → Q / K / V</text><text x="128" y="286" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">10</text><text x="224" y="286" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">20</text><text x="320" y="286" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">30</text><text x="416" y="286" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">60</text><text x="512" y="286" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">70</text><text x="76" y="324" text-anchor="end" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">Q</text><rect x="84" y="300" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="128" y="325" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="180" y="300" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="224" y="325" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="276" y="300" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="320" y="325" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="372" y="300" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="416" y="325" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="468" y="300" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="512" y="325" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><text x="76" y="372" text-anchor="end" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K</text><rect x="84" y="348" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="128" y="373" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="180" y="348" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="224" y="373" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="276" y="348" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="320" y="373" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="372" y="348" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="416" y="373" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="468" y="348" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="512" y="373" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><text x="76" y="420" text-anchor="end" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">V</text><rect x="84" y="396" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="128" y="421" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="180" y="396" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="224" y="421" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="276" y="396" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="320" y="421" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="372" y="396" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="416" y="421" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="468" y="396" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="512" y="421" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><text x="84" y="444" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12" font-weight="600">本轮 Q/K/V：5 tokens</text><text x="84" y="512" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="14" font-weight="600">KV 与上下文</text><text x="84" y="540" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">KV Pool 读取</text><text x="190" y="540" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">0</text><text x="84" y="564" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">KV 写入</text><text x="190" y="564" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">5 个 token</text><text x="84" y="588" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">上下文长度</text><text x="190" y="588" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">5</text><text x="644" y="232" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="16" font-weight="600">Attention 输入</text><text x="644" y="252" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10">第 L 层 · Causal Mask · 每层各有一份 KV Pool</text><rect x="720" y="272" width="72" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="756" y="288" text-anchor="middle" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="8" font-weight="600">new</text><text x="756" y="302" text-anchor="middle" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="8">K10 V10</text><rect x="792" y="272" width="72" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="828" y="288" text-anchor="middle" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="8" font-weight="600">new</text><text x="828" y="302" text-anchor="middle" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="8">K20 V20</text><rect x="864" y="272" width="72" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="900" y="288" text-anchor="middle" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="8" font-weight="600">new</text><text x="900" y="302" text-anchor="middle" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="8">K30 V30</text><rect x="936" y="272" width="72" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="972" y="288" text-anchor="middle" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="8" font-weight="600">new</text><text x="972" y="302" text-anchor="middle" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="8">K60 V60</text><rect x="1008" y="272" width="72" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="1044" y="288" text-anchor="middle" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="8" font-weight="600">new</text><text x="1044" y="302" text-anchor="middle" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="8">K70 V70</text><path d="M756 322 V318" fill="none" stroke="#eb6c36" stroke-width="1"/><polygon points="753,319 759,319 756,313" fill="#eb6c36"/><path d="M828 322 V318" fill="none" stroke="#eb6c36" stroke-width="1"/><polygon points="825,319 831,319 828,313" fill="#eb6c36"/><path d="M900 322 V318" fill="none" stroke="#eb6c36" stroke-width="1"/><polygon points="897,319 903,319 900,313" fill="#eb6c36"/><path d="M972 322 V318" fill="none" stroke="#eb6c36" stroke-width="1"/><polygon points="969,319 975,319 972,313" fill="#eb6c36"/><path d="M1044 322 V318" fill="none" stroke="#eb6c36" stroke-width="1"/><polygon points="1041,319 1047,319 1044,313" fill="#eb6c36"/><text x="900" y="266" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">写入</text><text x="756" y="340" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K10</text><text x="828" y="340" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K20</text><text x="900" y="340" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K30</text><text x="972" y="340" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K60</text><text x="1044" y="340" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K70</text><text x="700" y="372" text-anchor="end" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12">Q10</text><rect x="722" y="346" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="794" y="346" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="866" y="346" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="938" y="346" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="1010" y="346" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="700" y="420" text-anchor="end" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12">Q20</text><rect x="722" y="394" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="794" y="394" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="866" y="394" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="938" y="394" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="1010" y="394" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="700" y="468" text-anchor="end" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12">Q30</text><rect x="722" y="442" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="794" y="442" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="866" y="442" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="938" y="442" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="1010" y="442" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="700" y="516" text-anchor="end" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12">Q60</text><rect x="722" y="490" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="794" y="490" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="866" y="490" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="938" y="490" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="1010" y="490" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="700" y="564" text-anchor="end" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12">Q70</text><rect x="722" y="538" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="794" y="538" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="866" y="538" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="938" y="538" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="1010" y="538" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="644" y="614" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12">每个 Q 只 attend 到当前位置及之前的 K。</text><text x="644" y="638" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12">5 组 K/V 全部在本轮计算，并写入 KV Pool。</text><text x="76" y="726" fill="#4f5d75" font-family="'Instrument Serif', 'Noto Serif SC', serif" font-size="16"><tspan font-family="'Geist Mono', monospace" font-size="13" fill="#eb6c36">01</tspan>　没有缓存：5 个 token 全部 Prefill，生成 5 组 Q/K/V，再把 KV 写入池。</text>
+  <line x1="60" y1="706" x2="60" y2="736" stroke="#eb6c36" stroke-width="2"/>
+  </g>
+
+  <g data-snapshot data-motion-item data-step="2" aria-label="步骤 2 命中前 3 个 token：只计算 60、70 的 Q、K、V，历史 K/V 从 KV Pool 读取，Q60 看到 K10 到 K60，Q70 看到全部。">
+  <text x="84" y="52" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="10" font-weight="500" letter-spacing="0.16em">REQUEST B</text><text x="84" y="78" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="18">B = [10,20,30,60,70]</text><rect x="84" y="92" width="94" height="52" rx="8" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8" stroke-width="1.2"/><text x="131" y="118" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">10</text><text x="131" y="136" text-anchor="middle" fill="#2e5aa8" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">命中</text><text x="131" y="166" text-anchor="middle" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="9">p0</text><rect x="182" y="92" width="94" height="52" rx="8" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8" stroke-width="1.2"/><text x="229" y="118" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">20</text><text x="229" y="136" text-anchor="middle" fill="#2e5aa8" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">命中</text><text x="229" y="166" text-anchor="middle" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="9">p1</text><rect x="280" y="92" width="94" height="52" rx="8" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8" stroke-width="1.2"/><text x="327" y="118" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">30</text><text x="327" y="136" text-anchor="middle" fill="#2e5aa8" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">命中</text><text x="327" y="166" text-anchor="middle" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="9">p2</text><rect x="378" y="92" width="94" height="52" rx="8" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1.2"/><text x="425" y="118" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">60</text><text x="425" y="136" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">新算</text><text x="425" y="166" text-anchor="middle" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="9">p3</text><rect x="476" y="92" width="94" height="52" rx="8" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1.2"/><text x="523" y="118" text-anchor="middle" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="20">70</text><text x="523" y="136" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">新算</text><text x="523" y="166" text-anchor="middle" fill="#7a8399" font-family="'Geist Mono', monospace" font-size="9">p4</text><path d="M376 88 V150" fill="none" stroke="#7a8399" stroke-width="1" stroke-dasharray="4,4"/><text x="376" y="178" text-anchor="middle" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="9">命中边界</text><text x="84" y="232" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="16" font-weight="600">本轮计算</text><text x="84" y="252" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">历史 token 跳过，只算 60、70</text><text x="128" y="286" text-anchor="middle" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">10</text><text x="224" y="286" text-anchor="middle" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">20</text><text x="320" y="286" text-anchor="middle" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">30</text><text x="416" y="286" text-anchor="middle" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">60</text><text x="512" y="286" text-anchor="middle" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="11" font-weight="600">70</text><text x="76" y="324" text-anchor="end" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">Q</text><rect x="84" y="300" width="88" height="40" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="128" y="325" text-anchor="middle" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">—</text><rect x="180" y="300" width="88" height="40" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="224" y="325" text-anchor="middle" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">—</text><rect x="276" y="300" width="88" height="40" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="320" y="325" text-anchor="middle" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">—</text><rect x="372" y="300" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="416" y="325" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="468" y="300" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="512" y="325" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><text x="76" y="372" text-anchor="end" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K</text><rect x="84" y="348" width="88" height="40" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="128" y="373" text-anchor="middle" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">—</text><rect x="180" y="348" width="88" height="40" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="224" y="373" text-anchor="middle" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">—</text><rect x="276" y="348" width="88" height="40" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="320" y="373" text-anchor="middle" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">—</text><rect x="372" y="348" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="416" y="373" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="468" y="348" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="512" y="373" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><text x="76" y="420" text-anchor="end" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">V</text><rect x="84" y="396" width="88" height="40" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="128" y="421" text-anchor="middle" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">—</text><rect x="180" y="396" width="88" height="40" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="224" y="421" text-anchor="middle" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">—</text><rect x="276" y="396" width="88" height="40" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="320" y="421" text-anchor="middle" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">—</text><rect x="372" y="396" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="416" y="421" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><rect x="468" y="396" width="88" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="512" y="421" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="13" font-weight="600">✓</text><text x="84" y="444" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12" font-weight="600">本轮 Q/K/V：2 tokens（只算 60、70）</text><text x="84" y="512" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="14" font-weight="600">KV 与上下文</text><text x="84" y="540" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">KV Pool 读取</text><text x="190" y="540" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">3 个 token（slot 5/8/12）</text><text x="84" y="564" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">KV 写入</text><text x="190" y="564" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">2 个 token（60、70）</text><text x="84" y="588" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">上下文长度</text><text x="190" y="588" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">5（不变）</text><text x="644" y="232" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="16" font-weight="600">Attention 输入</text><text x="644" y="252" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10">第 L 层 · Causal Mask · 每层各有一份 KV Pool</text><text x="644" y="290" fill="#2d3142" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11" font-weight="600">KV Pool</text><rect x="720" y="272" width="72" height="40" rx="6" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8"/><text x="756" y="288" text-anchor="middle" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="8" font-weight="600">slot 5</text><text x="756" y="302" text-anchor="middle" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="8">K10 V10</text><rect x="792" y="272" width="72" height="40" rx="6" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8"/><text x="828" y="288" text-anchor="middle" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="8" font-weight="600">slot 8</text><text x="828" y="302" text-anchor="middle" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="8">K20 V20</text><rect x="864" y="272" width="72" height="40" rx="6" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8"/><text x="900" y="288" text-anchor="middle" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="8" font-weight="600">slot 12</text><text x="900" y="302" text-anchor="middle" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="8">K30 V30</text><rect x="936" y="272" width="72" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="972" y="288" text-anchor="middle" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="8" font-weight="600">new</text><text x="972" y="302" text-anchor="middle" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="8">K60 V60</text><rect x="1008" y="272" width="72" height="40" rx="6" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="1044" y="288" text-anchor="middle" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="8" font-weight="600">new</text><text x="1044" y="302" text-anchor="middle" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="8">K70 V70</text><path d="M756 314 V322" fill="none" stroke="#2e5aa8" stroke-width="1"/><polygon points="753,321 759,321 756,327" fill="#2e5aa8"/><path d="M828 314 V322" fill="none" stroke="#2e5aa8" stroke-width="1"/><polygon points="825,321 831,321 828,327" fill="#2e5aa8"/><path d="M900 314 V322" fill="none" stroke="#2e5aa8" stroke-width="1"/><polygon points="897,321 903,321 900,327" fill="#2e5aa8"/><path d="M972 322 V318" fill="none" stroke="#eb6c36" stroke-width="1"/><polygon points="969,319 975,319 972,313" fill="#eb6c36"/><path d="M1044 322 V318" fill="none" stroke="#eb6c36" stroke-width="1"/><polygon points="1041,319 1047,319 1044,313" fill="#eb6c36"/><text x="828" y="266" text-anchor="middle" fill="#2e5aa8" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">读取</text><text x="1008" y="266" text-anchor="middle" fill="#eb6c36" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="10" font-weight="600">写入</text><text x="756" y="340" text-anchor="middle" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K10</text><text x="828" y="340" text-anchor="middle" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K20</text><text x="900" y="340" text-anchor="middle" fill="#2e5aa8" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K30</text><text x="972" y="340" text-anchor="middle" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K60</text><text x="1044" y="340" text-anchor="middle" fill="#eb6c36" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">K70</text><path d="M936 316 V588" fill="none" stroke="#7a8399" stroke-width="1" stroke-dasharray="4,4"/><text x="700" y="372" text-anchor="end" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="12" text-decoration="line-through">Q10</text><rect x="722" y="346" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="794" y="346" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="866" y="346" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="938" y="346" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="1010" y="346" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="700" y="420" text-anchor="end" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="12" text-decoration="line-through">Q20</text><rect x="722" y="394" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="794" y="394" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="866" y="394" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="938" y="394" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="1010" y="394" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="700" y="468" text-anchor="end" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="12" text-decoration="line-through">Q30</text><rect x="722" y="442" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="794" y="442" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="866" y="442" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="938" y="442" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><rect x="1010" y="442" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="700" y="516" text-anchor="end" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12">Q60</text><rect x="722" y="490" width="68" height="44" rx="4" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8"/><rect x="794" y="490" width="68" height="44" rx="4" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8"/><rect x="866" y="490" width="68" height="44" rx="4" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8"/><rect x="938" y="490" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="1010" y="490" width="68" height="44" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/><text x="700" y="564" text-anchor="end" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12">Q70</text><rect x="722" y="538" width="68" height="44" rx="4" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8"/><rect x="794" y="538" width="68" height="44" rx="4" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8"/><rect x="866" y="538" width="68" height="44" rx="4" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8"/><rect x="938" y="538" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><rect x="1010" y="538" width="68" height="44" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/><text x="644" y="614" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">Q60 → K10 K20 K30 K60</text><text x="890" y="614" fill="#7a8399" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="11">（K70 被 mask）</text><text x="644" y="638" fill="#2d3142" font-family="'Geist Mono', monospace" font-size="12" font-weight="600">Q70 → K10 K20 K30 K60 K70</text><text x="76" y="726" fill="#4f5d75" font-family="'Instrument Serif', 'Noto Serif SC', serif" font-size="16"><tspan font-family="'Geist Mono', monospace" font-size="13" fill="#eb6c36">02</tspan>　命中 3 个 token：只算 2 组 Q/K/V；历史 K/V 从池读取，Attention 仍覆盖完整 5 个位置。</text>
+  <line x1="60" y1="706" x2="60" y2="736" stroke="#eb6c36" stroke-width="2"/>
+  </g>
+
+  
+<line x1="60" y1="764" x2="1140" y2="764" stroke="rgba(45,49,66,0.12)" stroke-width="0.8"/>
+<text x="60" y="790" fill="#4f5d75" font-family="'Geist Mono', monospace" font-size="10" font-weight="500" letter-spacing="0.14em">LEGEND</text>
+<rect x="140" y="780" width="16" height="12" rx="2" fill="rgba(235,108,54,0.12)" stroke="#eb6c36"/>
+<text x="164" y="790" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12">本轮计算 / 写入</text>
+<rect x="360" y="780" width="16" height="12" rx="2" fill="rgba(46,90,168,0.12)" stroke="#2e5aa8"/>
+<text x="384" y="790" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12">从 KV Pool 读取</text>
+<rect x="580" y="780" width="16" height="12" rx="2" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.08)"/>
+<text x="604" y="790" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12">命中缓存，跳过</text>
+<rect x="800" y="780" width="16" height="12" rx="2" fill="#f5f5f5" stroke="rgba(45,49,66,0.08)"/>
+<text x="824" y="790" fill="#4f5d75" font-family="'Geist', 'Noto Sans SC', sans-serif" font-size="12">Causal Mask 之外（空白）</text>
+
+</svg>
+
+    </div>
+
+    <p class="note">图中是第 L 层的视角；每一层都有自己的 KV 缓存，读取和写入会在每层重复。KV slot 5/8/12 是示意值。未命中后缀 60、70 仍然要逐层前向；缓存命中只跳过历史 token 的重复计算，不会缩短上下文，也不会改变 causal mask。</p>
+
+    <noscript><p>动画控制需要 JavaScript；上方显示的是完整的最终状态。</p></noscript>
+  </main>
+
+  <script data-diagram-controls>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const staticOverride = params.get('motion') === 'static' || document.documentElement.dataset.motion === 'static';
+      const requestedStep = params.get('step');
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+      document.fonts.ready.then(() => { document.documentElement.dataset.fontsReady = 'true'; });
+
+      document.querySelectorAll('[data-motion-root]').forEach((root) => {
+        const count = Number(root.dataset.stepCount);
+        const hold = parseFloat(getComputedStyle(root).getPropertyValue('--motion-hold')) || 720;
+        const parsedStep = requestedStep !== null && /^\d+$/.test(requestedStep) ? Number(requestedStep) : null;
+        const exactStep = params.get('motion') === 'step' && Number.isSafeInteger(parsedStep) && parsedStep >= 0 && parsedStep <= count ? parsedStep : null;
+        const items = [...root.querySelectorAll('[data-motion-item]')];
+        const labels = Array.from({ length: count + 1 }, (_, index) => index === 0
+          ? 'Ready'
+          : items.filter((item) => !item.hasAttribute('data-motion-decorative') && Number(item.dataset.step) === index)
+              .map((item) => item.getAttribute('aria-label')).join('; '));
+        const controls = root.querySelector('[data-motion-controls]');
+        const status = root.querySelector('[data-motion-status]');
+        const visibleStep = root.querySelector('[data-motion-step-label]');
+        let step = count;
+        let timer = 0;
+        let playing = false;
+        let stepBeforeReduce = 0;
+        let resumeAfterReduce = root.dataset.motionMode === 'reveal';
+
+        const buttons = (action) => controls.querySelector(`[data-motion-action="${action}"]`);
+        const clearClock = () => { window.clearTimeout(timer); timer = 0; };
+        const announce = () => { status.textContent = `Step ${step} of ${count}: ${labels[step] || 'Complete'}`; };
+        const setControlsAvailable = (available) => {
+          controls.hidden = !available;
+          controls.setAttribute('aria-hidden', String(!available));
+          controls.dataset.playbackDisabled = String(!available);
+          controls.querySelectorAll('button').forEach((control) => { control.disabled = !available; });
+        };
+
+        function render(next, userInitiated = false) {
+          step = Math.max(0, Math.min(count, next));
+          root.dataset.stepCurrent = String(step);
+          root.dataset.frame = step === count ? 'end' : step === 0 ? 'start' : 'step';
+          items.forEach((item) => {
+            const itemStep = Number(item.dataset.step);
+            item.classList.toggle('is-visible', itemStep <= step);
+            item.classList.toggle('is-current', itemStep === step);
+          });
+          if (visibleStep) visibleStep.textContent = String(step);
+          const unavailable = controls.dataset.playbackDisabled === 'true';
+          buttons('prev').disabled = unavailable || step === 0;
+          buttons('next').disabled = unavailable || step === count;
+          if (userInitiated) announce();
+        }
+
+        function pause(userInitiated = false) {
+          clearClock();
+          playing = false;
+          root.classList.remove('is-playing');
+          buttons('play').setAttribute('aria-pressed', 'false');
+          buttons('pause').setAttribute('aria-pressed', 'true');
+          if (userInitiated) status.textContent = `Paused at step ${step} of ${count}`;
+        }
+
+        function finish() {
+          pause(false);
+          root.dataset.frame = 'end';
+          status.textContent = `Complete · step ${count} of ${count}`;
+        }
+
+        function tick() {
+          if (!playing) return;
+          if (step >= count) { finish(); return; }
+          render(step + 1, false);
+          if (step >= count) { finish(); return; }
+          timer = window.setTimeout(tick, hold);
+        }
+
+        function play(fromStart = false, userInitiated = false) {
+          clearClock();
+          if (fromStart || step >= count) render(0, userInitiated);
+          playing = true;
+          root.classList.add('is-playing');
+          buttons('play').setAttribute('aria-pressed', 'true');
+          buttons('pause').setAttribute('aria-pressed', 'false');
+          timer = window.setTimeout(tick, hold);
+        }
+
+        controls.addEventListener('click', (event) => {
+          const button = event.target.closest('[data-motion-action]');
+          if (!button) return;
+          const action = button.dataset.motionAction;
+          if (action === 'play') play(false, true);
+          if (action === 'pause') pause(true);
+          if (action === 'replay') play(true, true);
+          if (action === 'prev') { pause(false); render(step - 1, true); }
+          if (action === 'next') { pause(false); render(step + 1, true); }
+        });
+
+        root.addEventListener('keydown', (event) => {
+          if (event.target.matches('input, textarea, select, a[href]')) return;
+          const keys = { ArrowLeft: step - 1, ArrowRight: step + 1, Home: 0, End: count };
+          if (event.code === 'Space' && !event.target.closest('button')) {
+            event.preventDefault();
+            playing ? pause(true) : play(false, true);
+            return;
+          }
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'r') {
+            event.preventDefault();
+            play(true, true);
+            return;
+          }
+          if (!(event.key in keys)) return;
+          event.preventDefault();
+          pause(false);
+          render(keys[event.key], true);
+        });
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden' && playing) pause(false);
+        });
+        reduce.addEventListener('change', (event) => {
+          if (event.matches && root.dataset.motionState !== 'reduced') {
+            stepBeforeReduce = step;
+            resumeAfterReduce = playing;
+          }
+          pause(false);
+          if (event.matches) {
+            setControlsAvailable(false);
+            render(count, false);
+            root.dataset.frame = 'static';
+            root.dataset.motionState = 'reduced';
+            status.textContent = 'Reduced motion · complete static frame · playback controls unavailable';
+          } else if (staticOverride || root.dataset.motionMode === 'none') {
+            setControlsAvailable(false);
+            render(count, false);
+            root.dataset.frame = 'static';
+            root.dataset.motionState = 'static';
+            status.textContent = 'Static frame · complete diagram · playback controls unavailable';
+          } else {
+            delete root.dataset.motionState;
+            if (exactStep !== null) {
+              setControlsAvailable(false);
+              render(exactStep, false);
+              root.dataset.frame = 'step';
+              root.dataset.motionState = 'test';
+              status.textContent = `Test frame · step ${step} of ${count} · playback controls unavailable`;
+            } else {
+              setControlsAvailable(true);
+              render(stepBeforeReduce, false);
+              status.textContent = `Ready · step ${step} of ${count}`;
+              if (resumeAfterReduce && root.dataset.motionMode === 'reveal') {
+                play(false, false);
+              }
+            }
+            resumeAfterReduce = false;
+          }
+        });
+
+        if (staticOverride) {
+          document.documentElement.dataset.motion = 'static';
+          pause(false);
+          setControlsAvailable(false);
+          render(count, false);
+          root.dataset.frame = 'static';
+          root.dataset.motionState = 'static';
+          status.textContent = 'Static frame · complete diagram · playback controls unavailable';
+        } else if (reduce.matches || root.dataset.motionMode === 'none') {
+          pause(false);
+          setControlsAvailable(false);
+          render(count, false);
+          root.dataset.frame = 'static';
+          root.dataset.motionState = reduce.matches ? 'reduced' : 'static';
+          status.textContent = reduce.matches
+            ? 'Reduced motion · complete static frame · playback controls unavailable'
+            : 'Static frame · complete diagram · playback controls unavailable';
+        } else if (exactStep !== null) {
+          document.documentElement.dataset.motion = 'step';
+          pause(false);
+          setControlsAvailable(false);
+          render(exactStep, false);
+          root.dataset.frame = 'step';
+          root.dataset.motionState = 'test';
+          status.textContent = `Test frame · step ${step} of ${count} · playback controls unavailable`;
+        } else if (root.dataset.motionMode === 'reveal') {
+          setControlsAvailable(true);
+          render(0, false);
+          play(false, false);
+        } else {
+          pause(false);
+          setControlsAvailable(true);
+          render(0, false);
+          status.textContent = `Ready · step 0 of ${count}`;
+        }
+        root.classList.add('motion-ready');
+      });
+    })();
+  </script>
+</body>
+</html>

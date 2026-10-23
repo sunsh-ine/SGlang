@@ -241,6 +241,19 @@
         <span class="chip">lock_ref</span>
       </div>
     </a>
+    <a class="card" href="demos/prefix-cache-attention/">
+      <h3>Prefix Cache 命中时的 Attention 输入</h3>
+      <p>
+        两帧对比请求 B：无缓存时 5 个 token 全部 Prefill；命中前 3 个 token 后只算 2 组 Q/K/V，
+        历史 K/V 从 KV Pool 读取。5×5 因果矩阵用颜色标出“本轮计算 / 缓存读取 / 跳过”，
+        并明确 Q60 与 Q70 各自能看到哪些 K。
+      </p>
+      <div class="meta">
+        <span class="chip">demos/prefix-cache-attention/</span>
+        <span class="chip">step animation</span>
+        <span class="chip">prefix cache</span>
+      </div>
+    </a>
   </div>
 
   <footer>
